@@ -6,7 +6,7 @@ import ChatMessage, { type Message } from '@/components/ChatMessage'
 import SummaryStrip from '@/components/SummaryStrip'
 import { todayString } from '@/lib/utils/format'
 import { getDailyBudget } from '@/lib/utils/calories'
-import type { NutritionResult, UserProfile, DailyActivity, FoodEntry } from '@/lib/db/types'
+import type { NutritionResult, UserProfile, DailyActivity, FoodEntry, ProfileUpdateFields } from '@/lib/db/types'
 
 const WELCOME: Message = {
   type: 'assistant',
@@ -147,6 +147,21 @@ export default function ChatPage() {
     loadContext()
   }
 
+  async function handleProfileUpdated(updates: ProfileUpdateFields) {
+    if (!profile) return
+    await fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...profile, ...updates }),
+    })
+    await loadContext()
+    setMessages(prev => [...prev, { type: 'assistant', content: 'Done. Your profile has been updated.' }])
+  }
+
+  function handleProfileUpdateCancelled() {
+    setMessages(prev => [...prev, { type: 'assistant', content: 'Okay, no changes made.' }])
+  }
+
   if (!profileChecked) return (
     <div className="flex flex-col h-full items-center justify-center">
       <div className="text-gray-500 text-sm">Loading…</div>
@@ -161,7 +176,9 @@ export default function ChatPage() {
           <ChatMessage key={i} message={m}
             onFoodAdded={handleFoodAdded}
             onWorkoutAdded={handleWorkoutAdded}
-            onStepsAdded={handleStepsAdded} />
+            onStepsAdded={handleStepsAdded}
+            onProfileUpdated={handleProfileUpdated}
+            onProfileUpdateCancelled={handleProfileUpdateCancelled} />
         ))}
         {loading && (
           <div className="flex justify-start">

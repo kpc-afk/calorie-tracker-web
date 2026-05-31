@@ -1,24 +1,15 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import type { UserProfile } from '@/lib/db/types'
 import { kgToLbs, cmToFtIn } from '@/lib/utils/format'
 import { ACTIVITY_LABELS } from '@/lib/utils/calories'
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const router = useRouter()
 
   useEffect(() => {
     fetch('/api/profile').then(r => r.json()).then(setProfile)
   }, [])
-
-  async function handleSignOut() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
 
   if (!profile) return (
     <div className="p-6 flex items-center justify-center min-h-40">
@@ -67,10 +58,7 @@ export default function SettingsPage() {
           </div>
         ))}
         <div className="pt-2 border-t border-zinc-800">
-          <button onClick={() => router.push('/onboarding')}
-            className="w-full bg-zinc-800 text-white py-2.5 rounded-xl text-sm border border-zinc-700 hover:border-zinc-500 transition-colors">
-            Edit profile &amp; recalculate targets
-          </button>
+          <p className="text-gray-500 text-xs">To update targets, ask in Chat — e.g. "change my daily target to 1,600 kcal" or "update my weight to 81kg".</p>
         </div>
       </div>
 
@@ -89,11 +77,6 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {/* Sign out */}
-      <button onClick={handleSignOut}
-        className="w-full bg-zinc-900 text-red-400 py-3.5 rounded-2xl text-sm font-medium border border-zinc-800 hover:border-zinc-700 transition-colors">
-        Sign out
-      </button>
     </div>
   )
 }

@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import ChatInput from '@/components/ChatInput'
 import ChatMessage, { type Message } from '@/components/ChatMessage'
 import SummaryStrip from '@/components/SummaryStrip'
@@ -13,8 +12,25 @@ const WELCOME: Message = {
   content: "Hi! Log food by describing it or uploading photos, tell me your steps, describe a workout, or ask anything about your nutrition.",
 }
 
+const SEED_PROFILE = {
+  date_of_birth: '1994-12-14',
+  sex: 'male' as const,
+  height_cm: 172,
+  weight_kg: 83,
+  height_unit: 'cm' as const,
+  weight_unit: 'kg' as const,
+  goal: 'lose' as const,
+  activity_level: 'sedentary' as const,
+  bmr: 1755,
+  tdee: 2100,
+  deficit_amount: 600,
+  target_calories: 1500,
+  protein_target_g: 130,
+  carbs_target_g: 150,
+  fat_target_g: 42,
+}
+
 export default function ChatPage() {
-  const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([WELCOME])
   const [loading, setLoading] = useState(false)
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -32,14 +48,24 @@ export default function ChatPage() {
     ])
     const [p, e, a] = await Promise.all([pRes.json(), eRes.json(), aRes.json()])
     if (!p) {
-      router.replace('/onboarding')
+      await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(SEED_PROFILE),
+      })
+      const seeded = await fetch('/api/profile').then(r => r.json())
+      if (!seeded) return
+      setProfile(seeded)
+      setProfileChecked(true)
+      setEntries([])
+      setActivity(null)
       return
     }
     setProfile(p)
     setProfileChecked(true)
     setEntries(e ?? [])
     setActivity(a)
-  }, [today, router])
+  }, [today])
 
   useEffect(() => { loadContext() }, [loadContext])
   useEffect(() => {

@@ -39,78 +39,114 @@ export default function DashboardPage() {
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   )
 
+  const stepsCalories = activity?.steps_calories ?? 0
+  const workoutCalories = activity?.workout_calories ?? 0
+
   const budget = profile
     ? getDailyBudget({
         tdee: (profile.tdee || Math.round(profile.bmr * 1.2)),
         deficitAmount: profile.deficit_amount,
-        stepsCalories: activity?.steps_calories ?? 0,
-        workoutCalories: activity?.workout_calories ?? 0,
+        stepsCalories,
+        workoutCalories,
       })
     : 0
+
+  const remaining = budget - totals.calories
+  const over = remaining < 0
+  const isToday = viewDate === today
 
   async function handleDelete(id: string) {
     await fetch(`/api/entries/${id}`, { method: 'DELETE' })
     loadData(viewDate)
   }
 
-  const isToday = viewDate === today
-
   return (
-    <div className="p-4 pb-6 space-y-4">
-      {/* Date nav */}
-      <div className="flex items-center justify-between">
-        <button onClick={() => setViewDate(offsetDate(viewDate, -1))}
-          className="text-gray-400 text-2xl w-10 h-10 flex items-center justify-center">‹</button>
-        <h2 className="text-white font-semibold">{formatDisplayDate(viewDate)}</h2>
-        <button onClick={() => setViewDate(offsetDate(viewDate, 1))} disabled={isToday}
-          className="text-gray-400 text-2xl w-10 h-10 flex items-center justify-center disabled:opacity-30">›</button>
-      </div>
+    <div className="flex flex-col h-full overflow-y-auto bg-black">
+      {/* Date nav + budget header */}
+      <div className="shrink-0 px-4 pt-4 pb-3 bg-zinc-950 border-b border-zinc-800/60">
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={() => setViewDate(offsetDate(viewDate, -1))}
+            className="w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-white bg-zinc-800 rounded-xl text-lg transition-colors">
+            ‹
+          </button>
+          <div className="text-center">
+            <div className="text-white font-semibold text-sm">{formatDisplayDate(viewDate)}</div>
+            {!isToday && <div className="text-zinc-500 text-xs mt-0.5">past day</div>}
+          </div>
+          <button onClick={() => setViewDate(offsetDate(viewDate, 1))} disabled={isToday}
+            className="w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-white bg-zinc-800 rounded-xl text-lg transition-colors disabled:opacity-30">
+            ›
+          </button>
+        </div>
 
-      {/* Calorie ring */}
-      <div className="flex justify-center py-2">
-        <CalorieRing eaten={totals.calories} budget={budget} />
-      </div>
-
-      {/* Macros */}
-      {profile && (
-        <MacroBar
-          protein={totals.protein} proteinTarget={profile.protein_target_g}
-          carbs={totals.carbs} carbsTarget={profile.carbs_target_g}
-          fat={totals.fat} fatTarget={profile.fat_target_g}
-        />
-      )}
-
-      {/* Activity */}
-      <ActivityStrip
-        stepsCount={activity?.steps_count ?? 0}
-        stepsCalories={activity?.steps_calories ?? 0}
-        workoutCalories={activity?.workout_calories ?? 0}
-      />
-
-      {/* Food log */}
-      <div>
-        <h3 className="text-gray-400 text-xs font-medium uppercase tracking-wide mb-2 px-1">Food log</h3>
-        {entries.length === 0
-          ? (
-            <div className="text-center text-gray-600 py-10 text-sm">
-              No entries yet — log food in the Chat tab 💬
+        {/* Budget summary row */}
+        {profile && (
+          <div className="flex items-center justify-between">
+            <div className="text-center flex-1">
+              <div className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Budget</div>
+              <div className="text-white font-bold text-lg leading-tight">{Math.round(budget)}</div>
             </div>
-          )
-          : (
+            <div className="text-center flex-1">
+              <div className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Eaten</div>
+              <div className="text-white font-bold text-lg leading-tight">{Math.round(totals.calories)}</div>
+            </div>
+            <div className="text-center flex-1">
+              <div className="text-zinc-500 text-xs font-medium uppercase tracking-wider">{over ? 'Over' : 'Left'}</div>
+              <div className={`font-bold text-lg leading-tight ${over ? 'text-red-400' : 'text-green-400'}`}>
+                {Math.abs(Math.round(remaining))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 px-4 py-4 space-y-3 pb-6">
+        {/* Calorie ring + budget breakdown */}
+        <CalorieRing
+          eaten={totals.calories}
+          budget={budget}
+          baseCalories={profile ? (profile.tdee || Math.round(profile.bmr * 1.2)) - profile.deficit_amount : 0}
+          stepsCalories={stepsCalories}
+          workoutCalories={workoutCalories}
+          size={230}
+        />
+
+        {/* Macros */}
+        {profile && (
+          <MacroBar
+            protein={totals.protein} proteinTarget={profile.protein_target_g}
+            carbs={totals.carbs} carbsTarget={profile.carbs_target_g}
+            fat={totals.fat} fatTarget={profile.fat_target_g}
+          />
+        )}
+
+        {/* Activity */}
+        <ActivityStrip
+          stepsCount={activity?.steps_count ?? 0}
+          stepsCalories={stepsCalories}
+          workoutCalories={workoutCalories}
+        />
+
+        {/* Food log */}
+        <div>
+          <div className="flex items-center justify-between mb-2 px-1">
+            <h3 className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Food log</h3>
+            {entries.length > 0 && (
+              <span className="text-zinc-600 text-xs">{entries.length} items · {Math.round(totals.calories)} kcal</span>
+            )}
+          </div>
+          {entries.length === 0 ? (
+            <div className="bg-zinc-900 rounded-2xl p-6 text-center">
+              <div className="text-zinc-600 text-sm">Nothing logged yet</div>
+              <div className="text-zinc-700 text-xs mt-1">Log food in the Chat tab →</div>
+            </div>
+          ) : (
             <div className="space-y-2">
               {entries.map(e => <FoodCard key={e.id} entry={e} onDelete={handleDelete} />)}
             </div>
-          )
-        }
-      </div>
-
-      {/* Daily totals footer */}
-      {entries.length > 0 && (
-        <div className="bg-zinc-900 rounded-xl p-3 flex justify-between text-xs text-gray-400">
-          <span>{entries.length} items</span>
-          <span className="text-white font-medium">{Math.round(totals.calories)} kcal total</span>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

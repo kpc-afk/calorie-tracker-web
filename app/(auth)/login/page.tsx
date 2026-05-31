@@ -6,16 +6,22 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
+    setError('')
     const supabase = createClient()
-    await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     })
-    setSent(true)
+    if (error) {
+      setError(error.message)
+    } else {
+      setSent(true)
+    }
     setLoading(false)
   }
 
@@ -44,6 +50,7 @@ export default function LoginPage() {
             placeholder="your@email.com" required
             className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
           />
+          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
           <button type="submit" disabled={loading}
             className="w-full bg-green-500 text-black font-semibold py-3 rounded-xl disabled:opacity-50">
             {loading ? 'Sending…' : 'Send magic link'}

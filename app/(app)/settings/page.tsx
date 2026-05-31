@@ -43,7 +43,7 @@ export default function SettingsPage() {
     ['Height', heightDisplay],
     ['Weight', weightDisplay],
     ['Goal', profile.goal],
-    ['Activity level', ACTIVITY_LABELS[profile.activity_level] ?? profile.activity_level],
+    ['Activity level', profile.activity_level ? (ACTIVITY_LABELS[profile.activity_level] ?? profile.activity_level) : 'Sedentary'],
     ['BMR', `${Math.round(profile.bmr)} kcal`],
     ['TDEE', `${Math.round(tdee)} kcal`],
     ['Daily deficit', `${Math.round(profile.deficit_amount)} kcal`],

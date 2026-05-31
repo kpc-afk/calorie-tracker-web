@@ -44,7 +44,7 @@ export async function dispatchChat(params: {
   const tdee = (profile.tdee || Math.round(profile.bmr * 1.2))
   const budget = tdee - profile.deficit_amount + todayContext.stepsCalories + todayContext.workoutCalories
   const remaining = budget - todayContext.caloriesEaten
-  const activityLabel = ACTIVITY_LABELS[profile.activity_level] ?? profile.activity_level
+  const activityLabel = profile.activity_level ? (ACTIVITY_LABELS[profile.activity_level] ?? profile.activity_level) : 'Sedentary'
 
   const systemPrompt = `${PERSONA}
 

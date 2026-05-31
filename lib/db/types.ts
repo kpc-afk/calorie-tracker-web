@@ -10,9 +10,9 @@ export type UserProfile = {
   height_unit: 'cm' | 'ft'
   weight_unit: 'kg' | 'lbs'
   goal: 'lose' | 'maintain' | 'gain'
-  activity_level: ActivityLevel
+  activity_level?: ActivityLevel
   bmr: number
-  tdee: number
+  tdee?: number
   deficit_amount: number
   target_calories: number
   protein_target_g: number

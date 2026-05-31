@@ -79,8 +79,19 @@ export type NutritionResult = {
   commentary: string
 }
 
+export type ProfileUpdateFields = {
+  goal?: 'lose' | 'maintain' | 'gain'
+  deficit_amount?: number
+  weight_kg?: number
+  protein_target_g?: number
+  carbs_target_g?: number
+  fat_target_g?: number
+  target_calories?: number
+}
+
 export type ChatResponse =
   | { intent: 'food_log'; items: NutritionResult[]; message: string }
   | { intent: 'workout'; activeCalories: number; message: string }
   | { intent: 'steps'; steps: number; stepsCalories: number; message: string }
   | { intent: 'question'; message: string }
+  | { intent: 'profile_update_pending'; updates: ProfileUpdateFields; message: string }

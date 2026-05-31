@@ -1,8 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import { parseJSON } from './gemini'
+import { flashModel, parseJSON } from './gemini'
 import type { ChatResponse, UserProfile } from '@/lib/db/types'
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
 type DailyContext = {
   caloriesEaten: number
@@ -82,7 +79,7 @@ Rules for profile_update_pending:
 - Only include fields in "updates" that are actually changing
 - When switching goal to "maintain": set deficit_amount to 0, target_calories to ${profile.bmr}
 - When switching goal to "lose": suggest deficit_amount of 300–400 kcal, target_calories = BMR minus that amount
-- When user reports a new weight: include weight_kg in updates
+- When user reports a new weight: include weight_kg in updates. BMR is stored separately and does not auto-recalculate — do not include bmr in updates unless the user explicitly asks to change their BMR.
 - State proposed changes clearly in the message and end with "Confirm?"
 
 Important rules:
@@ -101,11 +98,6 @@ Important rules:
     ? `${systemPrompt}\n\nRecent conversation:\n${historyText}\n\nUser: ${message}`
     : `${systemPrompt}\n\nUser: ${message}`
 
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-pro',
-    generationConfig: { temperature: 0.2, responseMimeType: 'application/json' },
-  })
-
   type Part = string | { inlineData: { data: string; mimeType: string } }
   const parts: Part[] = [fullPrompt]
 
@@ -120,6 +112,6 @@ Important rules:
     })
   }
 
-  const result = await model.generateContent(parts as Parameters<typeof model.generateContent>[0])
+  const result = await flashModel.generateContent(parts as Parameters<typeof flashModel.generateContent>[0])
   return parseJSON<ChatResponse>(result.response.text())
 }

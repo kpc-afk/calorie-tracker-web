@@ -14,5 +14,9 @@ export const flashModelText = genAI.getGenerativeModel({
 
 export function parseJSON<T>(text: string): T {
   const cleaned = text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim()
-  return JSON.parse(cleaned)
+  try {
+    return JSON.parse(cleaned)
+  } catch {
+    throw new Error(`Gemini returned invalid JSON: ${cleaned.slice(0, 100)}`)
+  }
 }

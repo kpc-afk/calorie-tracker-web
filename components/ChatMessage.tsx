@@ -107,9 +107,7 @@ export default function ChatMessage({ message, onFoodAdded, onWorkoutAdded, onSt
           {response.message}
         </div>
       </div>
-      {profileUpdated ? (
-        <p className="text-center text-gray-500 text-xs py-1">Profile updated</p>
-      ) : (
+      {!profileUpdated && (
         <div className="flex gap-2">
           <button
             onClick={() => { setProfileUpdated(true); onProfileUpdated(response.updates) }}
@@ -117,7 +115,7 @@ export default function ChatMessage({ message, onFoodAdded, onWorkoutAdded, onSt
             Confirm
           </button>
           <button
-            onClick={onProfileUpdateCancelled}
+            onClick={() => { setProfileUpdated(true); onProfileUpdateCancelled() }}
             className="flex-1 bg-zinc-700 text-gray-200 font-semibold py-3 rounded-xl text-sm">
             Cancel
           </button>

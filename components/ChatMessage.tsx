@@ -23,6 +23,7 @@ export default function ChatMessage({ message, onFoodAdded, onWorkoutAdded, onSt
   const [allAdded, setAllAdded] = useState(false)
   const [workoutAdded, setWorkoutAdded] = useState(false)
   const [stepsAdded, setStepsAdded] = useState(false)
+  const [profileUpdated, setProfileUpdated] = useState(false)
   const [localItems, setLocalItems] = useState<NutritionResult[]>(
     message.type === 'ai_response' && message.response.intent === 'food_log'
       ? [...message.response.items]
@@ -106,18 +107,22 @@ export default function ChatMessage({ message, onFoodAdded, onWorkoutAdded, onSt
           {response.message}
         </div>
       </div>
-      <div className="flex gap-2">
-        <button
-          onClick={() => onProfileUpdated(response.updates)}
-          className="flex-1 bg-green-500 text-black font-semibold py-3 rounded-xl text-sm">
-          Confirm
-        </button>
-        <button
-          onClick={onProfileUpdateCancelled}
-          className="flex-1 bg-zinc-700 text-gray-200 font-semibold py-3 rounded-xl text-sm">
-          Cancel
-        </button>
-      </div>
+      {profileUpdated ? (
+        <p className="text-center text-gray-500 text-xs py-1">Profile updated</p>
+      ) : (
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setProfileUpdated(true); onProfileUpdated(response.updates) }}
+            className="flex-1 bg-green-500 text-black font-semibold py-3 rounded-xl text-sm">
+            Confirm
+          </button>
+          <button
+            onClick={onProfileUpdateCancelled}
+            className="flex-1 bg-zinc-700 text-gray-200 font-semibold py-3 rounded-xl text-sm">
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   )
 

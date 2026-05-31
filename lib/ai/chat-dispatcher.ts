@@ -1,4 +1,5 @@
 import { flashModel, parseJSON } from './gemini'
+import { ACTIVITY_LABELS } from '@/lib/utils/calories'
 import type { ChatResponse, UserProfile } from '@/lib/db/types'
 
 type DailyContext = {
@@ -19,7 +20,7 @@ DAILY INTAKE TARGETS:
 - Protein floor: 130g every single day — strictly required to protect muscle mass. Always prioritise hitting this before worrying about the calorie ceiling.
 
 STRATEGY RULES:
-- Target deficit: 500–700 kcal/day. Never encourage 1,000+ kcal deficits.
+- Target deficit: 500–700 kcal/day from TDEE. Never encourage 1,000+ kcal deficits.
 - Weekly average over daily perfection. Minor daily overages are not emergencies.
 - No guilt workouts. If mentally exhausted, recommend sleep over late-night cardio. Workouts are for cardiovascular health and endurance, not to pay for food.
 - Muscle over scale weight. The goal is to arrive at 72kg lean, not depleted.
@@ -40,8 +41,10 @@ export async function dispatchChat(params: {
 }): Promise<ChatResponse> {
   const { message, imageBase64Array, imageMimeTypes, profile, todayContext } = params
 
-  const budget = profile.bmr - profile.deficit_amount + todayContext.stepsCalories + todayContext.workoutCalories
+  const tdee = (profile.tdee || Math.round(profile.bmr * 1.2))
+  const budget = tdee - profile.deficit_amount + todayContext.stepsCalories + todayContext.workoutCalories
   const remaining = budget - todayContext.caloriesEaten
+  const activityLabel = ACTIVITY_LABELS[profile.activity_level] ?? profile.activity_level
 
   const systemPrompt = `${PERSONA}
 
@@ -49,12 +52,15 @@ You are a personal nutrition assistant embedded in a calorie tracking app.
 
 User profile:
 - Goal: ${profile.goal}
+- Activity level: ${activityLabel}
 - BMR: ${profile.bmr} kcal
-- Daily deficit target: ${profile.deficit_amount} kcal
-- Today's budget: ${budget} kcal
+- TDEE (BMR × activity multiplier): ${tdee} kcal
+- Daily deficit from TDEE: ${profile.deficit_amount} kcal
+- Base daily target (TDEE − deficit): ${tdee - profile.deficit_amount} kcal
+- Today's budget (base + ${todayContext.stepsCalories} steps kcal + ${todayContext.workoutCalories} workout kcal): ${budget} kcal
 - Eaten so far: ${todayContext.caloriesEaten} kcal (P:${todayContext.proteinEaten}g C:${todayContext.carbsEaten}g F:${todayContext.fatEaten}g)
 - Remaining: ${remaining} kcal
-- Targets: Protein ${profile.protein_target_g}g, Carbs ${profile.carbs_target_g}g, Fat ${profile.fat_target_g}g
+- Macro targets: Protein ${profile.protein_target_g}g, Carbs ${profile.carbs_target_g}g, Fat ${profile.fat_target_g}g
 - User weight: ${profile.weight_kg} kg (used for step calorie calculations)
 
 Detect intent and respond with JSON in EXACTLY one of these shapes:
@@ -72,14 +78,16 @@ Note: stepsCalories = steps × 0.000571 × ${profile.weight_kg}
 4. General question (nutrition advice, progress query, anything else):
 {"intent":"question","message":"your answer as plain conversational text"}
 
-5. Profile update (user wants to change their goal, weight, deficit, or macro targets):
-{"intent":"profile_update_pending","updates":{"goal":"maintain","deficit_amount":0,"target_calories":${profile.bmr}},"message":"I'll set your goal → Maintain and drop your deficit to 0. New daily base budget: ${profile.bmr} kcal. Confirm?"}
+5. Profile update (user wants to change their goal, weight, activity level, deficit, or macro targets):
+{"intent":"profile_update_pending","updates":{"goal":"maintain","deficit_amount":0,"tdee":${tdee},"target_calories":${tdee}},"message":"I'll set your goal → Maintain, deficit → 0. New base budget: ${tdee} kcal/day. Confirm?"}
 
 Rules for profile_update_pending:
 - Only include fields in "updates" that are actually changing
-- When switching goal to "maintain": set deficit_amount to 0, target_calories to ${profile.bmr}
-- When switching goal to "lose": suggest deficit_amount of 300–400 kcal, target_calories = BMR minus that amount
-- When user reports a new weight: include weight_kg in updates. BMR is stored separately and does not auto-recalculate — do not include bmr in updates unless the user explicitly asks to change their BMR.
+- ALWAYS include both deficit_amount AND target_calories together — they must stay in sync (target_calories = TDEE − deficit_amount)
+- When switching goal to "maintain": set deficit_amount to 0, target_calories to ${tdee}
+- When switching goal to "lose": suggest deficit_amount of 500–600 kcal, target_calories = ${tdee} minus that amount
+- When user reports a new weight: include weight_kg. BMR and TDEE do not auto-recalculate unless user explicitly asks.
+- When user changes activity level: include activity_level (one of: sedentary, lightly_active, moderately_active, very_active, extra_active) and update tdee accordingly
 - State proposed changes clearly in the message and end with "Confirm?"
 
 Important rules:

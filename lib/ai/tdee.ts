@@ -1,8 +1,10 @@
 import { flashModel, flashModelText, parseJSON } from './gemini'
-import { calculateBMR } from '@/lib/utils/calories'
+import { calculateBMR, calculateTDEE } from '@/lib/utils/calories'
 
 type TDEEResult = {
   bmr: number
+  tdee: number
+  activityLevel: string
   deficitAmount: number
   targetCalories: number
   proteinTargetG: number
@@ -17,6 +19,7 @@ export async function calculateTDEEWithAI(params: {
   heightCm: number
   weightKg: number
   goal: 'lose' | 'maintain' | 'gain'
+  activityLevel: string
 }): Promise<TDEEResult> {
   const bmr = calculateBMR({
     weightKg: params.weightKg,
@@ -24,18 +27,23 @@ export async function calculateTDEEWithAI(params: {
     dateOfBirth: params.dateOfBirth,
     sex: params.sex,
   })
+  const tdee = calculateTDEE(bmr, params.activityLevel)
 
   const prompt = `
 You are a nutrition expert. Given this profile, recommend a daily calorie deficit/surplus and macro targets.
 
-BMR (calculated via Mifflin-St Jeor): ${bmr} kcal
+BMR (Mifflin-St Jeor): ${bmr} kcal
+TDEE (BMR × activity multiplier): ${tdee} kcal
+Activity level: ${params.activityLevel}
 Goal: ${params.goal}
 Weight: ${params.weightKg} kg
 
 Rules:
-- "lose": deficit 300–500 kcal/day (never exceed 25% below BMR). Protein 2.0–2.2g/kg, moderate carbs, lower fat.
+- Base your deficit/surplus on TDEE, not BMR.
+- "lose": deficit 400–600 kcal/day from TDEE. Protein 2.0–2.2g/kg, moderate carbs, lower fat.
 - "maintain": deficit 0. Balanced macros.
-- "gain": surplus 200–300 kcal/day. Protein 1.8–2.0g/kg, high carbs, moderate fat.
+- "gain": surplus 200–300 kcal/day above TDEE. Protein 1.8–2.0g/kg, high carbs, moderate fat.
+- targetCalories = TDEE - deficitAmount
 
 Respond with JSON only:
 {
@@ -49,19 +57,20 @@ Respond with JSON only:
 `
 
   const result = await flashModel.generateContent(prompt)
-  const data = parseJSON<Omit<TDEEResult, 'bmr'>>(result.response.text())
-  return { bmr, ...data }
+  const data = parseJSON<Omit<TDEEResult, 'bmr' | 'tdee' | 'activityLevel'>>(result.response.text())
+  return { bmr, tdee, activityLevel: params.activityLevel, ...data }
 }
 
 export async function chatAboutTDEE(params: {
   message: string
   currentBMR: number
+  currentTDEE: number
   currentDeficit: number
   goal: string
   weightKg: number
   history: { role: string; content: string }[]
 }): Promise<string> {
-  const context = `User profile: BMR ${params.currentBMR} kcal, goal: ${params.goal}, weight: ${params.weightKg}kg, recommended deficit: ${params.currentDeficit} kcal/day.`
+  const context = `User profile: BMR ${params.currentBMR} kcal, TDEE ${params.currentTDEE} kcal, goal: ${params.goal}, weight: ${params.weightKg}kg, recommended deficit: ${params.currentDeficit} kcal/day from TDEE.`
   const historyText = params.history.map(m => `${m.role}: ${m.content}`).join('\n')
   const prompt = `${context}\n\nConversation so far:\n${historyText}\n\nUser: ${params.message}\n\nAnswer as a helpful, concise nutrition expert. Plain text only, no JSON.`
   const result = await flashModelText.generateContent(prompt)

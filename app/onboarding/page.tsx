@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ACTIVITY_LABELS, ACTIVITY_DESCRIPTIONS } from '@/lib/utils/calories'
+import type { ActivityLevel } from '@/lib/db/types'
 
 type Step = 'form' | 'result'
 
@@ -12,10 +14,13 @@ type FormData = {
   heightUnit: 'cm' | 'ft'
   weightUnit: 'kg' | 'lbs'
   goal: 'lose' | 'maintain' | 'gain' | ''
+  activityLevel: ActivityLevel
 }
 
 type TDEEResult = {
   bmr: number
+  tdee: number
+  activityLevel: string
   deficitAmount: number
   targetCalories: number
   proteinTargetG: number
@@ -25,6 +30,10 @@ type TDEEResult = {
 }
 
 type ChatMsg = { role: 'user' | 'assistant'; content: string }
+
+const ACTIVITY_ORDER: ActivityLevel[] = [
+  'sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extra_active'
+]
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -37,7 +46,8 @@ export default function OnboardingPage() {
   const [error, setError] = useState('')
   const [form, setForm] = useState<FormData>({
     dateOfBirth: '', sex: '', heightCm: '', weightKg: '',
-    heightUnit: 'cm', weightUnit: 'kg', goal: ''
+    heightUnit: 'cm', weightUnit: 'kg', goal: '',
+    activityLevel: 'sedentary',
   })
 
   function setField(key: keyof FormData, val: string) {
@@ -60,6 +70,7 @@ export default function OnboardingPage() {
           heightCm: Number(form.heightCm),
           weightKg: Number(form.weightKg),
           goal: form.goal,
+          activityLevel: form.activityLevel,
         }),
       })
       if (!res.ok) throw new Error('Calculation failed')
@@ -86,6 +97,7 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           message: userMsg,
           currentBMR: result.bmr,
+          currentTDEE: result.tdee,
           currentDeficit: result.deficitAmount,
           goal: form.goal,
           weightKg: Number(form.weightKg),
@@ -116,7 +128,9 @@ export default function OnboardingPage() {
           height_unit: form.heightUnit,
           weight_unit: form.weightUnit,
           goal: form.goal,
+          activity_level: form.activityLevel,
           bmr: result.bmr,
+          tdee: result.tdee,
           deficit_amount: result.deficitAmount,
           target_calories: result.targetCalories,
           protein_target_g: result.proteinTargetG,
@@ -135,7 +149,7 @@ export default function OnboardingPage() {
   if (step === 'form') return (
     <div className="min-h-screen bg-black p-6 pb-16 max-w-lg mx-auto">
       <h1 className="text-white text-2xl font-bold mb-1">Set up your profile</h1>
-      <p className="text-gray-400 mb-8 text-sm">We&apos;ll calculate your base calories and recommend a daily target.</p>
+      <p className="text-gray-400 mb-8 text-sm">We&apos;ll calculate your TDEE and recommend a daily target.</p>
 
       <div className="space-y-5">
         <div>
@@ -163,9 +177,8 @@ export default function OnboardingPage() {
               className="text-green-500 text-xs">Switch to {form.heightUnit === 'cm' ? 'ft/in' : 'cm'}</button>
           </div>
           <input type="number" value={form.heightCm} onChange={e => setField('heightCm', e.target.value)}
-            placeholder={form.heightUnit === 'cm' ? 'Height in cm (e.g. 178)' : 'Height in cm (convert manually)'}
+            placeholder="Height in cm (e.g. 178)"
             className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:border-green-500 focus:outline-none" />
-          <p className="text-gray-600 text-xs mt-1">Always enter in cm. Use the unit toggle to see your display preference.</p>
         </div>
 
         <div>
@@ -175,7 +188,7 @@ export default function OnboardingPage() {
               className="text-green-500 text-xs">Switch to {form.weightUnit === 'kg' ? 'lbs' : 'kg'}</button>
           </div>
           <input type="number" value={form.weightKg} onChange={e => setField('weightKg', e.target.value)}
-            placeholder={form.weightUnit === 'kg' ? 'Weight in kg (e.g. 75)' : 'Weight in kg (convert manually)'}
+            placeholder="Weight in kg (e.g. 75)"
             className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:border-green-500 focus:outline-none" />
         </div>
 
@@ -183,14 +196,27 @@ export default function OnboardingPage() {
           <label className="text-gray-400 text-sm mb-2 block">Goal</label>
           <div className="space-y-2">
             {[
-              { val: 'lose' as const, label: 'Lose weight', desc: 'Calorie deficit below BMR' },
-              { val: 'maintain' as const, label: 'Maintain weight', desc: 'Eat at your BMR' },
-              { val: 'gain' as const, label: 'Gain muscle', desc: 'Calorie surplus above BMR' },
+              { val: 'lose' as const, label: 'Lose weight', desc: 'Calorie deficit below TDEE' },
+              { val: 'maintain' as const, label: 'Maintain weight', desc: 'Eat at your TDEE' },
+              { val: 'gain' as const, label: 'Gain muscle', desc: 'Calorie surplus above TDEE' },
             ].map(g => (
               <button key={g.val} onClick={() => setField('goal', g.val)}
                 className={`w-full p-4 rounded-xl text-left border transition-colors ${form.goal === g.val ? 'border-green-500 bg-green-500/10' : 'border-zinc-700 bg-zinc-900'}`}>
                 <div className="text-white font-medium text-sm">{g.label}</div>
                 <div className="text-gray-400 text-xs mt-0.5">{g.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-gray-400 text-sm mb-2 block">Activity level</label>
+          <div className="space-y-2">
+            {ACTIVITY_ORDER.map(level => (
+              <button key={level} onClick={() => setField('activityLevel', level)}
+                className={`w-full p-4 rounded-xl text-left border transition-colors ${form.activityLevel === level ? 'border-green-500 bg-green-500/10' : 'border-zinc-700 bg-zinc-900'}`}>
+                <div className="text-white font-medium text-sm">{ACTIVITY_LABELS[level]}</div>
+                <div className="text-gray-400 text-xs mt-0.5">{ACTIVITY_DESCRIPTIONS[level]}</div>
               </button>
             ))}
           </div>
@@ -209,14 +235,16 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-black flex flex-col">
       <div className="p-6 pb-4">
         <h1 className="text-white text-2xl font-bold mb-1">Your targets</h1>
-        <p className="text-gray-400 text-sm">Based on your BMR. Exercise calories are added daily.</p>
+        <p className="text-gray-400 text-sm">Based on your TDEE. Workout calories are added daily.</p>
       </div>
 
       <div className="px-6 mb-4">
         <div className="bg-zinc-900 rounded-2xl p-5 space-y-3">
           {[
-            { label: 'BMR (base, no exercise)', value: `${result.bmr} kcal`, color: 'text-white' },
-            { label: 'Baseline daily target', value: `${result.targetCalories} kcal`, color: 'text-green-400' },
+            { label: 'BMR (resting metabolic rate)', value: `${result.bmr} kcal`, color: 'text-gray-400' },
+            { label: `TDEE (${ACTIVITY_LABELS[result.activityLevel]})`, value: `${result.tdee} kcal`, color: 'text-white' },
+            { label: 'Daily deficit from TDEE', value: `${result.deficitAmount} kcal`, color: 'text-white' },
+            { label: 'Base daily target', value: `${result.targetCalories} kcal`, color: 'text-green-400' },
             { label: 'Protein target', value: `${result.proteinTargetG}g`, color: 'text-white' },
             { label: 'Carbs target', value: `${result.carbsTargetG}g`, color: 'text-white' },
             { label: 'Fat target', value: `${result.fatTargetG}g`, color: 'text-white' },
@@ -227,7 +255,7 @@ export default function OnboardingPage() {
             </div>
           ))}
           <p className="text-gray-500 text-xs pt-1 border-t border-zinc-800">
-            Your daily budget grows as you log steps and workouts each day.
+            Your daily budget grows as you log steps and workouts.
           </p>
         </div>
       </div>

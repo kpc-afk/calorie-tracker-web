@@ -1,3 +1,5 @@
+export type ActivityLevel = 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active'
+
 export type UserProfile = {
   id: string
   user_id: string
@@ -8,7 +10,9 @@ export type UserProfile = {
   height_unit: 'cm' | 'ft'
   weight_unit: 'kg' | 'lbs'
   goal: 'lose' | 'maintain' | 'gain'
+  activity_level: ActivityLevel
   bmr: number
+  tdee: number
   deficit_amount: number
   target_calories: number
   protein_target_g: number
@@ -81,7 +85,9 @@ export type NutritionResult = {
 
 export type ProfileUpdateFields = {
   goal?: 'lose' | 'maintain' | 'gain'
+  activity_level?: ActivityLevel
   deficit_amount?: number
+  tdee?: number
   weight_kg?: number
   protein_target_g?: number
   carbs_target_g?: number

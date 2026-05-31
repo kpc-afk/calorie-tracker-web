@@ -41,7 +41,7 @@ export default function DashboardPage() {
 
   const budget = profile
     ? getDailyBudget({
-        bmr: profile.bmr,
+        tdee: (profile.tdee || Math.round(profile.bmr * 1.2)),
         deficitAmount: profile.deficit_amount,
         stepsCalories: activity?.steps_calories ?? 0,
         workoutCalories: activity?.workout_calories ?? 0,

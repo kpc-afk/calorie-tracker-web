@@ -53,7 +53,7 @@ export default function ChatPage() {
 
   const budget = profile
     ? getDailyBudget({
-        bmr: profile.bmr,
+        tdee: (profile.tdee || Math.round(profile.bmr * 1.2)),
         deficitAmount: profile.deficit_amount,
         stepsCalories: activity?.steps_calories ?? 0,
         workoutCalories: activity?.workout_calories ?? 0,
@@ -149,10 +149,18 @@ export default function ChatPage() {
 
   async function handleProfileUpdated(updates: ProfileUpdateFields) {
     if (!profile) return
+    // Keep deficit_amount and target_calories in sync — if one changes, derive the other
+    const tdee = updates.tdee || profile.tdee || Math.round(profile.bmr * 1.2)
+    const derived: ProfileUpdateFields = { ...updates, tdee }
+    if (updates.target_calories !== undefined && updates.deficit_amount === undefined) {
+      derived.deficit_amount = tdee - updates.target_calories
+    } else if (updates.deficit_amount !== undefined && updates.target_calories === undefined) {
+      derived.target_calories = tdee - updates.deficit_amount
+    }
     await fetch('/api/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...profile, ...updates }),
+      body: JSON.stringify({ ...profile, ...derived }),
     })
     await loadContext()
     setMessages(prev => [...prev, { type: 'assistant', content: 'Done. Your profile has been updated.' }])

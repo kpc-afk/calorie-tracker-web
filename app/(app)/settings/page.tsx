@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { UserProfile } from '@/lib/db/types'
 import { kgToLbs, cmToFtIn } from '@/lib/utils/format'
+import { ACTIVITY_LABELS } from '@/lib/utils/calories'
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -35,13 +36,18 @@ export default function SettingsPage() {
     ? `${kgToLbs(profile.weight_kg)} lbs`
     : `${profile.weight_kg} kg`
 
+  const tdee = (profile.tdee || Math.round(profile.bmr * 1.2))
+
   const rows: [string, string][] = [
     ['Age', `${ageYears} years`],
     ['Height', heightDisplay],
     ['Weight', weightDisplay],
     ['Goal', profile.goal],
+    ['Activity level', ACTIVITY_LABELS[profile.activity_level] ?? profile.activity_level],
     ['BMR', `${Math.round(profile.bmr)} kcal`],
-    ['Baseline target', `${Math.round(profile.target_calories)} kcal`],
+    ['TDEE', `${Math.round(tdee)} kcal`],
+    ['Daily deficit', `${Math.round(profile.deficit_amount)} kcal`],
+    ['Base daily target', `${Math.round(profile.target_calories)} kcal`],
     ['Protein target', `${Math.round(profile.protein_target_g)}g`],
     ['Carbs target', `${Math.round(profile.carbs_target_g)}g`],
     ['Fat target', `${Math.round(profile.fat_target_g)}g`],
@@ -72,7 +78,7 @@ export default function SettingsPage() {
       <div className="bg-zinc-900 rounded-2xl p-4 space-y-2.5">
         <h2 className="text-gray-400 text-xs font-medium uppercase tracking-wide">App</h2>
         {[
-          ['AI model', 'Gemini 1.5 Flash'],
+          ['AI model', 'Gemini 2.5 Pro'],
           ['Storage', 'Supabase (cloud)'],
           ['Version', '1.0'],
         ].map(([label, value]) => (

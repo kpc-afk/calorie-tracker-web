@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import ChatInput from '@/components/ChatInput'
 import ChatMessage, { type Message } from '@/components/ChatMessage'
 import SummaryStrip from '@/components/SummaryStrip'
@@ -13,9 +14,11 @@ const WELCOME: Message = {
 }
 
 export default function ChatPage() {
+  const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([WELCOME])
   const [loading, setLoading] = useState(false)
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [profileChecked, setProfileChecked] = useState(false)
   const [entries, setEntries] = useState<FoodEntry[]>([])
   const [activity, setActivity] = useState<DailyActivity | null>(null)
   const today = todayString()
@@ -28,10 +31,15 @@ export default function ChatPage() {
       fetch(`/api/activity?date=${today}`),
     ])
     const [p, e, a] = await Promise.all([pRes.json(), eRes.json(), aRes.json()])
+    if (!p) {
+      router.replace('/onboarding')
+      return
+    }
     setProfile(p)
+    setProfileChecked(true)
     setEntries(e ?? [])
     setActivity(a)
-  }, [today])
+  }, [today, router])
 
   useEffect(() => { loadContext() }, [loadContext])
   useEffect(() => {
@@ -138,6 +146,12 @@ export default function ChatPage() {
     })
     loadContext()
   }
+
+  if (!profileChecked) return (
+    <div className="flex flex-col h-full items-center justify-center">
+      <div className="text-gray-500 text-sm">Loading…</div>
+    </div>
+  )
 
   return (
     <div className="flex flex-col h-full">

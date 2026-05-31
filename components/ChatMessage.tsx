@@ -3,7 +3,7 @@ import { useState } from 'react'
 import FoodItemCard from './FoodItemCard'
 import WorkoutCard from './WorkoutCard'
 import StepsCard from './StepsCard'
-import type { ChatResponse, NutritionResult } from '@/lib/db/types'
+import type { ChatResponse, NutritionResult, ProfileUpdateFields } from '@/lib/db/types'
 
 export type TextMessage = { type: 'user' | 'assistant'; content: string }
 export type AIResponseMessage = { type: 'ai_response'; response: ChatResponse; date: string }
@@ -14,9 +14,11 @@ type Props = {
   onFoodAdded: (items: NutritionResult[], date: string) => void
   onWorkoutAdded: (kcal: number, date: string) => void
   onStepsAdded: (steps: number, kcal: number, date: string) => void
+  onProfileUpdated: (updates: ProfileUpdateFields) => void
+  onProfileUpdateCancelled: () => void
 }
 
-export default function ChatMessage({ message, onFoodAdded, onWorkoutAdded, onStepsAdded }: Props) {
+export default function ChatMessage({ message, onFoodAdded, onWorkoutAdded, onStepsAdded, onProfileUpdated, onProfileUpdateCancelled }: Props) {
   const [addedItems, setAddedItems] = useState<Set<number>>(new Set())
   const [allAdded, setAllAdded] = useState(false)
   const [workoutAdded, setWorkoutAdded] = useState(false)
@@ -95,6 +97,28 @@ export default function ChatMessage({ message, onFoodAdded, onWorkoutAdded, onSt
       onAdd={() => { onStepsAdded(response.steps, response.stepsCalories, date); setStepsAdded(true) }}
       added={stepsAdded}
     />
+  )
+
+  if (response.intent === 'profile_update_pending') return (
+    <div className="space-y-2">
+      <div className="flex justify-start">
+        <div className="bg-zinc-800 text-gray-200 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%] text-sm leading-relaxed whitespace-pre-wrap">
+          {response.message}
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={() => onProfileUpdated(response.updates)}
+          className="flex-1 bg-green-500 text-black font-semibold py-3 rounded-xl text-sm">
+          Confirm
+        </button>
+        <button
+          onClick={onProfileUpdateCancelled}
+          className="flex-1 bg-zinc-700 text-gray-200 font-semibold py-3 rounded-xl text-sm">
+          Cancel
+        </button>
+      </div>
+    </div>
   )
 
   return null

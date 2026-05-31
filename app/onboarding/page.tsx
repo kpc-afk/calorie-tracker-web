@@ -34,6 +34,7 @@ export default function OnboardingPage() {
   const [chatHistory, setChatHistory] = useState<ChatMsg[]>([])
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
+  const [error, setError] = useState('')
   const [form, setForm] = useState<FormData>({
     dateOfBirth: '', sex: '', heightCm: '', weightKg: '',
     heightUnit: 'cm', weightUnit: 'kg', goal: ''
@@ -48,21 +49,27 @@ export default function OnboardingPage() {
   async function handleCalculate() {
     if (!isFormValid) return
     setLoading(true)
-    const res = await fetch('/api/tdee', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        dateOfBirth: form.dateOfBirth,
-        sex: form.sex,
-        heightCm: Number(form.heightCm),
-        weightKg: Number(form.weightKg),
-        goal: form.goal,
-      }),
-    })
-    const data: TDEEResult = await res.json()
-    setResult(data)
-    setChatHistory([{ role: 'assistant', content: data.explanation }])
-    setStep('result')
+    setError('')
+    try {
+      const res = await fetch('/api/tdee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dateOfBirth: form.dateOfBirth,
+          sex: form.sex,
+          heightCm: Number(form.heightCm),
+          weightKg: Number(form.weightKg),
+          goal: form.goal,
+        }),
+      })
+      if (!res.ok) throw new Error('Calculation failed')
+      const data: TDEEResult = await res.json()
+      setResult(data)
+      setChatHistory([{ role: 'assistant', content: data.explanation }])
+      setStep('result')
+    } catch {
+      setError('Could not calculate targets. Please try again.')
+    }
     setLoading(false)
   }
 
@@ -72,46 +79,56 @@ export default function OnboardingPage() {
     setChatInput('')
     setChatLoading(true)
     setChatHistory(h => [...h, { role: 'user', content: userMsg }])
-    const res = await fetch('/api/tdee/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: userMsg,
-        currentBMR: result.bmr,
-        currentDeficit: result.deficitAmount,
-        goal: form.goal,
-        weightKg: Number(form.weightKg),
-        history: chatHistory,
-      }),
-    })
-    const { reply } = await res.json()
-    setChatHistory(h => [...h, { role: 'assistant', content: reply }])
+    try {
+      const res = await fetch('/api/tdee/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMsg,
+          currentBMR: result.bmr,
+          currentDeficit: result.deficitAmount,
+          goal: form.goal,
+          weightKg: Number(form.weightKg),
+          history: chatHistory,
+        }),
+      })
+      const { reply } = await res.json()
+      setChatHistory(h => [...h, { role: 'assistant', content: reply ?? 'Sorry, could not get a response.' }])
+    } catch {
+      setChatHistory(h => [...h, { role: 'assistant', content: 'Something went wrong. Please try again.' }])
+    }
     setChatLoading(false)
   }
 
   async function handleConfirm() {
     if (!result) return
     setLoading(true)
-    await fetch('/api/profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        date_of_birth: form.dateOfBirth,
-        sex: form.sex,
-        height_cm: Number(form.heightCm),
-        weight_kg: Number(form.weightKg),
-        height_unit: form.heightUnit,
-        weight_unit: form.weightUnit,
-        goal: form.goal,
-        bmr: result.bmr,
-        deficit_amount: result.deficitAmount,
-        target_calories: result.targetCalories,
-        protein_target_g: result.proteinTargetG,
-        carbs_target_g: result.carbsTargetG,
-        fat_target_g: result.fatTargetG,
-      }),
-    })
-    router.push('/chat')
+    setError('')
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date_of_birth: form.dateOfBirth,
+          sex: form.sex,
+          height_cm: Number(form.heightCm),
+          weight_kg: Number(form.weightKg),
+          height_unit: form.heightUnit,
+          weight_unit: form.weightUnit,
+          goal: form.goal,
+          bmr: result.bmr,
+          deficit_amount: result.deficitAmount,
+          target_calories: result.targetCalories,
+          protein_target_g: result.proteinTargetG,
+          carbs_target_g: result.carbsTargetG,
+          fat_target_g: result.fatTargetG,
+        }),
+      })
+      if (!res.ok) throw new Error('Save failed')
+      router.push('/chat')
+    } catch {
+      setError('Could not save your profile. Please try again.')
+    }
     setLoading(false)
   }
 
@@ -179,6 +196,7 @@ export default function OnboardingPage() {
           </div>
         </div>
 
+        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
         <button onClick={handleCalculate} disabled={!isFormValid || loading}
           className="w-full bg-green-500 text-black font-semibold py-4 rounded-xl mt-2 disabled:opacity-40 transition-opacity">
           {loading ? 'Calculating…' : 'Calculate my targets →'}

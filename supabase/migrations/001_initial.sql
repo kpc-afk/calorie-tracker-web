@@ -72,3 +72,8 @@ create policy "own profile" on public.user_profiles for all using (auth.uid() = 
 create policy "own food" on public.food_entries for all using (auth.uid() = user_id);
 create policy "own weight" on public.weight_entries for all using (auth.uid() = user_id);
 create policy "own activity" on public.daily_activity for all using (auth.uid() = user_id);
+
+-- Indexes for common query patterns
+create index idx_food_entries_user_date on public.food_entries(user_id, date);
+create index idx_weight_entries_user_date on public.weight_entries(user_id, date);
+create index idx_daily_activity_user_date on public.daily_activity(user_id, date);

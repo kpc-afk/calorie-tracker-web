@@ -256,6 +256,7 @@ export default function OnboardingPage() {
           <button onClick={handleChatSend} disabled={chatLoading || !chatInput.trim()}
             className="bg-zinc-700 hover:bg-zinc-600 text-white px-4 rounded-xl transition-colors disabled:opacity-40">→</button>
         </div>
+        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
         <button onClick={handleConfirm} disabled={loading}
           className="w-full bg-green-500 text-black font-semibold py-4 rounded-xl disabled:opacity-40 transition-opacity">
           {loading ? 'Saving…' : 'Looks good, start tracking →'}

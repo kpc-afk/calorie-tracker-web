@@ -10,10 +10,12 @@ export async function getProfile(): Promise<UserProfile | null> {
 
 export async function upsertProfile(profile: Omit<UserProfile, 'id' | 'user_id' | 'updated_at'>) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  await supabase.from('user_profiles').upsert({
-    id: 'me', user_id: user!.id, ...profile, updated_at: new Date().toISOString()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) throw new Error(`Auth failed: ${authError?.message ?? 'no user'}`)
+  const { error } = await supabase.from('user_profiles').upsert({
+    id: 'me', user_id: user.id, ...profile, updated_at: new Date().toISOString()
   })
+  if (error) throw new Error(`Upsert failed: ${error.message} (code: ${error.code})`)
 }
 
 // Food entries

@@ -12,6 +12,7 @@ export type Message = TextMessage | AIResponseMessage
 type Props = {
   message: Message
   logDate: string
+  isHistory?: boolean
   onFoodAdded: (items: NutritionResult[], date: string) => void
   onWorkoutAdded: (kcal: number, date: string) => void
   onStepsAdded: (steps: number, kcal: number, date: string) => void
@@ -20,7 +21,7 @@ type Props = {
   onRetry?: () => void
 }
 
-export default function ChatMessage({ message, logDate, onFoodAdded, onWorkoutAdded, onStepsAdded, onProfileUpdated, onProfileUpdateCancelled, onRetry }: Props) {
+export default function ChatMessage({ message, logDate, isHistory, onFoodAdded, onWorkoutAdded, onStepsAdded, onProfileUpdated, onProfileUpdateCancelled, onRetry }: Props) {
   const [addedItems, setAddedItems] = useState<Set<number>>(new Set())
   const [allAdded, setAllAdded] = useState(false)
   const [workoutAdded, setWorkoutAdded] = useState(false)
@@ -87,18 +88,18 @@ export default function ChatMessage({ message, logDate, onFoodAdded, onWorkoutAd
       {localItems.map((item, i) => (
         <FoodItemCard key={i} item={item}
           onChange={updated => setLocalItems(prev => prev.map((it, idx) => idx === i ? updated : it))}
-          onAdd={() => { onFoodAdded([localItems[i]], logDate); setAddedItems(prev => new Set([...prev, i])) }}
-          added={addedItems.has(i)} />
+          onAdd={() => { onFoodAdded([localItems[i]], logDate); if (!isHistory) setAddedItems(prev => new Set([...prev, i])) }}
+          added={!isHistory && addedItems.has(i)}
+          addLabel={isHistory ? `Add to ${logDate}` : undefined} />
       ))}
-      {localItems.length > 1 && !allAdded && (
+      {localItems.length > 1 && (isHistory || !allAdded) && (
         <button onClick={() => {
-          const notYet = localItems.filter((_, i) => !addedItems.has(i))
+          const notYet = isHistory ? localItems : localItems.filter((_, i) => !addedItems.has(i))
           if (notYet.length > 0) onFoodAdded(notYet, logDate)
-          setAllAdded(true)
-          setAddedItems(new Set(localItems.map((_, i) => i)))
+          if (!isHistory) { setAllAdded(true); setAddedItems(new Set(localItems.map((_, i) => i))) }
         }}
           className="w-full bg-green-500 text-black font-semibold py-3 rounded-xl text-sm">
-          Add all {localItems.length} items
+          {isHistory ? `Add all ${localItems.length} to ${logDate}` : `Add all ${localItems.length} items`}
         </button>
       )}
     </div>

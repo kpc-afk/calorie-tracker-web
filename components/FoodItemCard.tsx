@@ -7,9 +7,10 @@ type Props = {
   onChange: (updated: NutritionResult) => void
   onAdd: () => void
   added: boolean
+  addLabel?: string
 }
 
-export default function FoodItemCard({ item, onChange, onAdd, added }: Props) {
+export default function FoodItemCard({ item, onChange, onAdd, added, addLabel }: Props) {
   const [expanded, setExpanded] = useState(false)
 
   function update(key: keyof NutritionResult, val: string | number) {
@@ -45,7 +46,7 @@ export default function FoodItemCard({ item, onChange, onAdd, added }: Props) {
         <div className="flex-1" />
         {added
           ? <span className="text-green-500 text-xs font-medium">✓ Added</span>
-          : <button onClick={onAdd} className="bg-green-500 text-black text-xs font-semibold px-4 py-1.5 rounded-full">Add</button>
+          : <button onClick={onAdd} className="bg-green-500 text-black text-xs font-semibold px-4 py-1.5 rounded-full">{addLabel ?? 'Add'}</button>
         }
       </div>
 

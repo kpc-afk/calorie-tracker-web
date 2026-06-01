@@ -523,6 +523,7 @@ export default function ChatPage() {
         {displayHistory.map(({ m, i }) => (
           <ChatMessage key={i} message={m}
             logDate={logDate}
+            isHistory
             onFoodAdded={handleFoodAdded}
             onWorkoutAdded={handleWorkoutAdded}
             onStepsAdded={handleStepsAdded}

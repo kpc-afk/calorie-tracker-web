@@ -508,8 +508,13 @@ export default function ChatPage() {
             {!isSearching && (hiddenCount > 0 || historyExpanded) && (
               <button
                 onClick={() => {
-                  if (historyExpanded) { setHistoryExpanded(false); scrollToBottom() }
-                  else setHistoryExpanded(true)
+                  if (historyExpanded) {
+                    setHistoryExpanded(false)
+                    scrollToBottom()
+                  } else {
+                    setHistoryExpanded(true)
+                    setTimeout(() => scrollToBottom(), 50)
+                  }
                 }}
                 title={historyExpanded ? 'Collapse history' : `Show ${hiddenCount} older messages`}
                 className="shrink-0 mt-1 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors text-xs">
@@ -531,6 +536,15 @@ export default function ChatPage() {
             onProfileUpdateCancelled={handleProfileUpdateCancelled}
             onRetry={handleRetry} />
         ))}
+
+        {/* Collapse button at the bottom of expanded history */}
+        {!isSearching && historyExpanded && historyEntries.length > 0 && (
+          <button
+            onClick={() => { setHistoryExpanded(false); scrollToBottom() }}
+            className="w-full py-2 text-xs text-zinc-500 hover:text-zinc-300 flex items-center justify-center gap-1.5 transition-colors">
+            ↑ Collapse history
+          </button>
+        )}
 
         {/* Current session messages (always visible) */}
         {currentEntries.map(({ m, i }) => (

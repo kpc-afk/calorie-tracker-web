@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { dispatchChat } from '@/lib/ai/chat-dispatcher'
 import { getProfile } from '@/lib/db/queries'
 
-export const maxDuration = 60
+export const runtime = 'edge'
+export const maxDuration = 25
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +19,12 @@ export async function POST(req: NextRequest) {
 
     for (const file of imageFiles) {
       const buffer = await file.arrayBuffer()
-      imageBase64Array.push(Buffer.from(buffer).toString('base64'))
+      const bytes = new Uint8Array(buffer)
+      let binary = ''
+      for (let i = 0; i < bytes.length; i += 8192) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + 8192))
+      }
+      imageBase64Array.push(btoa(binary))
       imageMimeTypes.push(file.type || 'image/jpeg')
     }
 

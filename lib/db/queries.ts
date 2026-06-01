@@ -74,6 +74,14 @@ export async function upsertActivity(
   }
 }
 
+export async function getActivityRange(days: number): Promise<DailyActivity[]> {
+  const supabase = await createClient()
+  const since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0]
+  const { data } = await supabase.from('daily_activity').select('*')
+    .gte('date', since).order('date', { ascending: false })
+  return data ?? []
+}
+
 // Weight entries
 export async function getWeightHistory(limitDays = 90): Promise<WeightEntry[]> {
   const supabase = await createClient()

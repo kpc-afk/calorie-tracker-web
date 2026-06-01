@@ -54,6 +54,7 @@ export default function ChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const touchStartY = useRef(0)
   const lastRequestRef = useRef<{ message: string; compressedImages: File[] } | null>(null)
+  const initialCountRef = useRef(messages.length)
 
   const RECENT_COUNT = 20
   const PULL_THRESHOLD = 60
@@ -209,9 +210,12 @@ export default function ChatPage() {
     try {
       const res = await fetch('/api/chat', { method: 'POST', body: fd })
       if (res.status === 429) {
-        const errData = await res.json().catch(() => ({}))
-        const detail = errData.detail ? `\n\nDebug: ${errData.detail}` : ''
-        setMessages(prev => [...prev, { type: 'assistant', content: `Rate limit hit — try again in about a minute. If it keeps failing, you may have hit the daily cap (1,500 requests) which resets at midnight.${detail}`, retryable: true }])
+        setMessages(prev => [...prev, { type: 'assistant', content: 'Rate limit hit — try again in about a minute. If it keeps failing, you may have hit the daily cap (500 requests) which resets at midnight.', retryable: true }])
+        setLoading(false)
+        return
+      }
+      if (res.status === 503) {
+        setMessages(prev => [...prev, { type: 'assistant', content: 'Gemini is experiencing high demand right now — wait a few seconds and try again.', retryable: true }])
         setLoading(false)
         return
       }
@@ -349,6 +353,11 @@ export default function ChatPage() {
         setLoading(false)
         return
       }
+      if (res.status === 503) {
+        setMessages(prev => [...prev, { type: 'assistant', content: 'Gemini is experiencing high demand right now — wait a few seconds and try again.', retryable: true }])
+        setLoading(false)
+        return
+      }
       if (!res.ok) throw new Error('Request failed')
       const response = await res.json()
       incrementRequestCount()
@@ -396,9 +405,12 @@ export default function ChatPage() {
 
   const isSearching = searchOpen && (searchQuery.trim() !== '' || searchFilter !== 'all')
 
-  // Always show welcome (index 0) separately; hide the rest until expanded
-  const welcomeEntry = allVisible[0]
-  const historyEntries = allVisible.slice(1)
+  // welcomeEntry = the WELCOME message (index 0, always visible)
+  // historyEntries = messages that existed on page load (hidden until expanded)
+  // currentEntries = messages sent this session (always visible)
+  const welcomeEntry = allVisible.find(({ i }) => i === 0)
+  const historyEntries = allVisible.filter(({ i }) => i > 0 && i < initialCountRef.current)
+  const currentEntries = allVisible.filter(({ i }) => i >= initialCountRef.current)
   const displayHistory = (isSearching || historyExpanded) ? historyEntries : []
   const hiddenCount = historyEntries.length - displayHistory.length
 
@@ -507,7 +519,7 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* History messages */}
+        {/* History messages (hidden until expanded) */}
         {displayHistory.map(({ m, i }) => (
           <ChatMessage key={i} message={m}
             logDate={logDate}
@@ -518,7 +530,19 @@ export default function ChatPage() {
             onProfileUpdateCancelled={handleProfileUpdateCancelled}
             onRetry={handleRetry} />
         ))}
-        {isSearching && displayHistory.length === 0 && !welcomeEntry && (
+
+        {/* Current session messages (always visible) */}
+        {currentEntries.map(({ m, i }) => (
+          <ChatMessage key={i} message={m}
+            logDate={logDate}
+            onFoodAdded={handleFoodAdded}
+            onWorkoutAdded={handleWorkoutAdded}
+            onStepsAdded={handleStepsAdded}
+            onProfileUpdated={handleProfileUpdated}
+            onProfileUpdateCancelled={handleProfileUpdateCancelled}
+            onRetry={handleRetry} />
+        ))}
+        {isSearching && allVisible.length === 0 && (
           <div className="text-center text-zinc-500 text-sm pt-8">No results found</div>
         )}
         {!isSearching && loading && (

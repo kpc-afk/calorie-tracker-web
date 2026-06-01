@@ -50,7 +50,10 @@ export async function POST(req: NextRequest) {
     const msg = fullMsg.toLowerCase()
     const httpStatus = (err as { status?: number; statusCode?: number })?.status ?? (err as { status?: number; statusCode?: number })?.statusCode
     if (httpStatus === 429 || msg.includes('429') || msg.includes('quota') || msg.includes('too many requests') || msg.includes('resource_exhausted') || msg.includes('resource exhausted')) {
-      return NextResponse.json({ error: 'rate_limit', detail: fullMsg.slice(0, 300) }, { status: 429 })
+      return NextResponse.json({ error: 'rate_limit' }, { status: 429 })
+    }
+    if (httpStatus === 503 || msg.includes('503') || msg.includes('service unavailable') || msg.includes('high demand') || msg.includes('overloaded')) {
+      return NextResponse.json({ error: 'overloaded' }, { status: 503 })
     }
     return NextResponse.json({ error: fullMsg.slice(0, 300) }, { status: 500 })
   }

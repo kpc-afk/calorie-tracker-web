@@ -78,10 +78,26 @@ export default function DashboardPage() {
     loadData(viewDate)
   }
 
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const statusLine = !profile ? '' : over
+    ? `${Math.abs(Math.round(remaining))} kcal over`
+    : `${Math.round(remaining)} kcal left`
+
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-black">
       {/* Date nav + budget header */}
       <div className="shrink-0 px-4 pt-4 pb-3 bg-zinc-950 border-b border-zinc-800/60">
+        {isToday && (
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-white font-bold text-base">{greeting}</span>
+            {statusLine && (
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${over ? 'bg-red-500/15 text-red-400' : 'bg-green-500/15 text-green-400'}`}>
+                {statusLine}
+              </span>
+            )}
+          </div>
+        )}
         <div className="flex items-center justify-between mb-3">
           <button onClick={() => setViewDate(offsetDate(viewDate, -1))}
             className="w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-white bg-zinc-800 rounded-xl text-lg transition-colors">

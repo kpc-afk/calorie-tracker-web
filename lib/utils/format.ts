@@ -1,11 +1,19 @@
 export function todayString(): string {
-  return new Date().toISOString().split('T')[0]
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 export function offsetDate(isoDate: string, days: number): string {
-  const d = new Date(isoDate)
-  d.setDate(d.getDate() + days)
-  return d.toISOString().split('T')[0]
+  const [y, mo, d] = isoDate.split('-').map(Number)
+  const date = new Date(y, mo - 1, d)
+  date.setDate(date.getDate() + days)
+  const yr = date.getFullYear()
+  const mn = String(date.getMonth() + 1).padStart(2, '0')
+  const dy = String(date.getDate()).padStart(2, '0')
+  return `${yr}-${mn}-${dy}`
 }
 
 export function formatDisplayDate(isoDate: string): string {

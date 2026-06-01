@@ -60,6 +60,24 @@ export default function DashboardPage() {
     loadData(viewDate)
   }
 
+  async function handleDeleteSteps() {
+    await fetch('/api/activity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: viewDate, steps_count: 0, steps_calories: 0 }),
+    })
+    loadData(viewDate)
+  }
+
+  async function handleDeleteWorkout() {
+    await fetch('/api/activity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: viewDate, workout_calories: 0 }),
+    })
+    loadData(viewDate)
+  }
+
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-black">
       {/* Date nav + budget header */}
@@ -105,7 +123,8 @@ export default function DashboardPage() {
         <CalorieRing
           eaten={totals.calories}
           budget={budget}
-          baseCalories={profile ? (profile.tdee || Math.round(profile.bmr * 1.2)) - profile.deficit_amount : 0}
+          tdee={profile ? (profile.tdee || Math.round(profile.bmr * 1.2)) : 0}
+          deficitAmount={profile?.deficit_amount ?? 0}
           stepsCalories={stepsCalories}
           workoutCalories={workoutCalories}
           size={230}
@@ -125,6 +144,8 @@ export default function DashboardPage() {
           stepsCount={activity?.steps_count ?? 0}
           stepsCalories={stepsCalories}
           workoutCalories={workoutCalories}
+          onDeleteSteps={handleDeleteSteps}
+          onDeleteWorkout={handleDeleteWorkout}
         />
 
         {/* Food log */}

@@ -86,6 +86,7 @@ export type NutritionResult = {
 export type ProfileUpdateFields = {
   goal?: 'lose' | 'maintain' | 'gain'
   activity_level?: ActivityLevel
+  bmr?: number
   deficit_amount?: number
   tdee?: number
   weight_kg?: number

@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Calorie Tracker',
   description: 'AI-powered personal calorie tracker',
   manifest: '/manifest.json',
+  icons: {
+    apple: '/apple-touch-icon.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

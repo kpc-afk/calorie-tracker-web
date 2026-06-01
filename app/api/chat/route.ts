@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { dispatchChat } from '@/lib/ai/chat-dispatcher'
 import { getProfile } from '@/lib/db/queries'
 
+export const maxDuration = 60
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
@@ -36,8 +38,14 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json(response)
-  } catch (err) {
-    console.error('Chat dispatch error:', err)
-    return NextResponse.json({ error: 'Failed to process message' }, { status: 500 })
+  } catch (err: unknown) {
+    const fullMsg = err instanceof Error ? err.message : String(err)
+    console.error('Chat error:', fullMsg)
+    const msg = fullMsg.toLowerCase()
+    const httpStatus = (err as { status?: number; statusCode?: number })?.status ?? (err as { status?: number; statusCode?: number })?.statusCode
+    if (httpStatus === 429 || msg.includes('429') || msg.includes('quota') || msg.includes('too many requests') || msg.includes('resource_exhausted') || msg.includes('resource exhausted')) {
+      return NextResponse.json({ error: 'rate_limit', detail: fullMsg.slice(0, 300) }, { status: 429 })
+    }
+    return NextResponse.json({ error: fullMsg.slice(0, 300) }, { status: 500 })
   }
 }

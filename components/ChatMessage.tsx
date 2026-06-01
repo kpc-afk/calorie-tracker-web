@@ -5,20 +5,22 @@ import WorkoutCard from './WorkoutCard'
 import StepsCard from './StepsCard'
 import type { ChatResponse, NutritionResult, ProfileUpdateFields } from '@/lib/db/types'
 
-export type TextMessage = { type: 'user' | 'assistant'; content: string }
+export type TextMessage = { type: 'user' | 'assistant'; content: string; imageUrls?: string[]; retryable?: boolean }
 export type AIResponseMessage = { type: 'ai_response'; response: ChatResponse; date: string }
 export type Message = TextMessage | AIResponseMessage
 
 type Props = {
   message: Message
+  logDate: string
   onFoodAdded: (items: NutritionResult[], date: string) => void
   onWorkoutAdded: (kcal: number, date: string) => void
   onStepsAdded: (steps: number, kcal: number, date: string) => void
   onProfileUpdated: (updates: ProfileUpdateFields) => void
   onProfileUpdateCancelled: () => void
+  onRetry?: () => void
 }
 
-export default function ChatMessage({ message, onFoodAdded, onWorkoutAdded, onStepsAdded, onProfileUpdated, onProfileUpdateCancelled }: Props) {
+export default function ChatMessage({ message, logDate, onFoodAdded, onWorkoutAdded, onStepsAdded, onProfileUpdated, onProfileUpdateCancelled, onRetry }: Props) {
   const [addedItems, setAddedItems] = useState<Set<number>>(new Set())
   const [allAdded, setAllAdded] = useState(false)
   const [workoutAdded, setWorkoutAdded] = useState(false)
@@ -32,21 +34,42 @@ export default function ChatMessage({ message, onFoodAdded, onWorkoutAdded, onSt
 
   if (message.type === 'user') return (
     <div className="flex justify-end">
-      <div className="bg-green-500 text-black rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[80%] text-sm leading-relaxed">
-        {message.content}
+      <div className="max-w-[80%] space-y-1">
+        {message.imageUrls && message.imageUrls.length > 0 && (
+          <div className={`grid gap-1 ${message.imageUrls.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+            {message.imageUrls.map((url, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={i} src={url} alt="" className="rounded-xl object-cover w-full"
+                style={{ maxHeight: 200, minHeight: 80 }} />
+            ))}
+          </div>
+        )}
+        {message.content && (
+          <div className="bg-green-500 text-black rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed">
+            {message.content}
+          </div>
+        )}
       </div>
     </div>
   )
 
   if (message.type === 'assistant') return (
     <div className="flex justify-start">
-      <div className="bg-zinc-800 text-gray-200 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%] text-sm leading-relaxed whitespace-pre-wrap">
-        {message.content}
+      <div className="max-w-[85%] space-y-2">
+        <div className="bg-zinc-800 text-gray-200 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap">
+          {message.content}
+        </div>
+        {message.retryable && onRetry && (
+          <button onClick={onRetry}
+            className="bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
+            Retry
+          </button>
+        )}
       </div>
     </div>
   )
 
-  const { response, date } = message as AIResponseMessage
+  const { response } = message as AIResponseMessage
 
   if (response.intent === 'question') return (
     <div className="flex justify-start">
@@ -64,13 +87,13 @@ export default function ChatMessage({ message, onFoodAdded, onWorkoutAdded, onSt
       {localItems.map((item, i) => (
         <FoodItemCard key={i} item={item}
           onChange={updated => setLocalItems(prev => prev.map((it, idx) => idx === i ? updated : it))}
-          onAdd={() => { onFoodAdded([localItems[i]], date); setAddedItems(prev => new Set([...prev, i])) }}
+          onAdd={() => { onFoodAdded([localItems[i]], logDate); setAddedItems(prev => new Set([...prev, i])) }}
           added={addedItems.has(i)} />
       ))}
       {localItems.length > 1 && !allAdded && (
         <button onClick={() => {
           const notYet = localItems.filter((_, i) => !addedItems.has(i))
-          if (notYet.length > 0) onFoodAdded(notYet, date)
+          if (notYet.length > 0) onFoodAdded(notYet, logDate)
           setAllAdded(true)
           setAddedItems(new Set(localItems.map((_, i) => i)))
         }}
@@ -85,7 +108,7 @@ export default function ChatMessage({ message, onFoodAdded, onWorkoutAdded, onSt
     <WorkoutCard
       activeCalories={response.activeCalories}
       message={response.message}
-      onAdd={() => { onWorkoutAdded(response.activeCalories, date); setWorkoutAdded(true) }}
+      onAdd={() => { onWorkoutAdded(response.activeCalories, logDate); setWorkoutAdded(true) }}
       added={workoutAdded}
     />
   )
@@ -95,7 +118,7 @@ export default function ChatMessage({ message, onFoodAdded, onWorkoutAdded, onSt
       steps={response.steps}
       stepsCalories={response.stepsCalories}
       message={response.message}
-      onAdd={() => { onStepsAdded(response.steps, response.stepsCalories, date); setStepsAdded(true) }}
+      onAdd={() => { onStepsAdded(response.steps, response.stepsCalories, logDate); setStepsAdded(true) }}
       added={stepsAdded}
     />
   )

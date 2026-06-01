@@ -1,5 +1,7 @@
 'use client'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
+
+type Attachment = { file: File; preview: string }
 
 type Props = {
   onSend: (message: string, images: File[]) => void
@@ -8,14 +10,29 @@ type Props = {
 
 export default function ChatInput({ onSend, disabled }: Props) {
   const [text, setText] = useState('')
-  const [images, setImages] = useState<File[]>([])
+  const [attachments, setAttachments] = useState<Attachment[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const addFiles = useCallback((files: FileList | File[]) => {
-    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'))
-    setImages(prev => [...prev, ...imageFiles])
+  // Clean up all preview URLs on unmount
+  useEffect(() => {
+    return () => { attachments.forEach(a => URL.revokeObjectURL(a.preview)) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const addFiles = useCallback((files: FileList | File[]) => {
+    const newAttachments = Array.from(files)
+      .filter(f => f.type.startsWith('image/'))
+      .map(f => ({ file: f, preview: URL.createObjectURL(f) }))
+    setAttachments(prev => [...prev, ...newAttachments])
+  }, [])
+
+  function removeImage(i: number) {
+    setAttachments(prev => {
+      URL.revokeObjectURL(prev[i].preview)
+      return prev.filter((_, idx) => idx !== i)
+    })
+  }
 
   function handlePaste(e: React.ClipboardEvent) {
     const pastedFiles: File[] = []
@@ -32,13 +49,12 @@ export default function ChatInput({ onSend, disabled }: Props) {
   }
 
   function handleSend() {
-    if (!text.trim() && images.length === 0) return
-    onSend(text.trim(), images)
+    if (!text.trim() && attachments.length === 0) return
+    onSend(text.trim(), attachments.map(a => a.file))
     setText('')
-    setImages([])
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-    }
+    attachments.forEach(a => URL.revokeObjectURL(a.preview))
+    setAttachments([])
+    if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -48,26 +64,24 @@ export default function ChatInput({ onSend, disabled }: Props) {
     }
   }
 
-  function removeImage(i: number) {
-    setImages(prev => prev.filter((_, idx) => idx !== i))
-  }
-
   function handleInput(e: React.FormEvent<HTMLTextAreaElement>) {
     const el = e.currentTarget
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 128)}px`
+    requestAnimationFrame(() => {
+      el.style.height = 'auto'
+      el.style.height = `${Math.min(el.scrollHeight, 128)}px`
+    })
   }
 
-  const canSend = (text.trim().length > 0 || images.length > 0) && !disabled
+  const canSend = (text.trim().length > 0 || attachments.length > 0) && !disabled
 
   return (
     <div className="border-t border-zinc-800 bg-zinc-900 p-3 safe-area-pb shrink-0">
-      {images.length > 0 && (
+      {attachments.length > 0 && (
         <div className="flex gap-2 mb-2 overflow-x-auto pb-1">
-          {images.map((img, i) => (
-            <div key={i} className="relative shrink-0">
+          {attachments.map((a, i) => (
+            <div key={a.preview} className="relative shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={URL.createObjectURL(img)} alt="" className="h-16 w-16 object-cover rounded-lg border border-zinc-700" />
+              <img src={a.preview} alt="" className="h-16 w-16 object-cover rounded-lg border border-zinc-700" />
               <button onClick={() => removeImage(i)}
                 className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center leading-none">
                 ×
@@ -82,7 +96,7 @@ export default function ChatInput({ onSend, disabled }: Props) {
           📎
         </button>
         <input ref={fileRef} type="file" accept="image/*" multiple className="hidden"
-          onChange={e => e.target.files && addFiles(e.target.files)} />
+          onChange={e => { if (e.target.files) { addFiles(e.target.files); e.target.value = '' } }} />
         <textarea
           ref={textareaRef}
           value={text}

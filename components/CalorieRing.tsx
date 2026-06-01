@@ -1,13 +1,14 @@
 type Props = {
   eaten: number
   budget: number
-  baseCalories: number
+  tdee: number
+  deficitAmount: number
   stepsCalories: number
   workoutCalories: number
   size?: number
 }
 
-export default function CalorieRing({ eaten, budget, baseCalories, stepsCalories, workoutCalories, size = 230 }: Props) {
+export default function CalorieRing({ eaten, budget, tdee, deficitAmount, stepsCalories, workoutCalories, size = 230 }: Props) {
   const strokeWidth = 16
   const radius = (size - strokeWidth * 2) / 2
   const circumference = 2 * Math.PI * radius
@@ -17,6 +18,7 @@ export default function CalorieRing({ eaten, budget, baseCalories, stepsCalories
   const remaining = Math.max(budget - eaten, 0)
   const center = size / 2
   const earnedCalories = stepsCalories + workoutCalories
+  const baseTarget = tdee - deficitAmount
 
   return (
     <div className="w-full">
@@ -24,8 +26,9 @@ export default function CalorieRing({ eaten, budget, baseCalories, stepsCalories
       <div className="flex justify-center" style={{ position: 'relative' }}>
         <div style={{ width: size, height: size, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width={size} height={size} style={{ position: 'absolute', transform: 'rotate(-90deg)' }}>
+            {/* Track */}
             <circle cx={center} cy={center} r={radius} fill="none" stroke="#1c1c1e" strokeWidth={strokeWidth} />
-            {/* Earned portion indicator on track */}
+            {/* Earned activity arc */}
             {earnedCalories > 0 && budget > 0 && (
               <circle cx={center} cy={center} r={radius} fill="none"
                 stroke="#166534" strokeWidth={strokeWidth}
@@ -56,38 +59,73 @@ export default function CalorieRing({ eaten, budget, baseCalories, stepsCalories
         </div>
       </div>
 
-      {/* Budget breakdown */}
+      {/* Budget breakdown — full chain */}
       <div className="mt-4 bg-zinc-900 rounded-2xl p-4">
-        <div className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">Daily budget</div>
-        <div className="space-y-2">
+        <div className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">How your budget is built</div>
+        <div className="space-y-1.5">
+          {/* TDEE */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-zinc-600" />
-              <span className="text-sm text-zinc-300">Base target</span>
+              <div className="w-2 h-2 rounded-full bg-zinc-500" />
+              <span className="text-sm text-zinc-300">Maintenance (TDEE)</span>
             </div>
-            <span className="text-sm font-semibold text-white">{Math.round(baseCalories)} kcal</span>
+            <span className="text-sm font-semibold text-zinc-300">{Math.round(tdee)} kcal</span>
           </div>
+          {/* Deficit */}
+          <div className="flex items-center justify-between pl-4">
+            <div className="flex items-center gap-2">
+              <span className="text-zinc-600 text-xs">−</span>
+              <span className="text-sm text-zinc-500">Deficit</span>
+            </div>
+            <span className="text-sm font-semibold text-red-500">−{Math.round(deficitAmount)} kcal</span>
+          </div>
+          {/* Base target */}
+          <div className="flex items-center justify-between py-1.5 border-t border-b border-zinc-800/60">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-zinc-400" />
+              <span className="text-sm text-zinc-200 font-medium">Base target</span>
+            </div>
+            <span className="text-sm font-bold text-white">{Math.round(baseTarget)} kcal</span>
+          </div>
+          {/* Steps */}
           {stepsCalories > 0 && (
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pl-4">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-700" />
-                <span className="text-sm text-zinc-300">Steps bonus</span>
+                <span className="text-green-700 text-xs">+</span>
+                <span className="text-sm text-zinc-400">Steps bonus</span>
               </div>
               <span className="text-sm font-semibold text-green-500">+{Math.round(stepsCalories)} kcal</span>
             </div>
           )}
+          {/* Workout */}
           {workoutCalories > 0 && (
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pl-4">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-600" />
-                <span className="text-sm text-zinc-300">Workout bonus</span>
+                <span className="text-green-600 text-xs">+</span>
+                <span className="text-sm text-zinc-400">Workout bonus</span>
               </div>
               <span className="text-sm font-semibold text-green-400">+{Math.round(workoutCalories)} kcal</span>
             </div>
           )}
-          <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
+          {/* Total budget */}
+          <div className="pt-1.5 border-t border-zinc-700 flex items-center justify-between">
             <span className="text-sm font-bold text-white">Total budget</span>
             <span className="text-sm font-bold text-white">{Math.round(budget)} kcal</span>
+          </div>
+          {/* Eaten + remaining */}
+          <div className="pt-1 mt-0.5 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-zinc-500">Eaten</span>
+              <span className="text-sm font-medium text-zinc-300">−{Math.round(eaten)} kcal</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold" style={{ color: over ? '#ef4444' : '#22c55e' }}>
+                {over ? 'Over budget' : 'Remaining'}
+              </span>
+              <span className="text-sm font-bold" style={{ color: over ? '#ef4444' : '#22c55e' }}>
+                {over ? `+${Math.round(eaten - budget)}` : Math.round(remaining)} kcal
+              </span>
+            </div>
           </div>
         </div>
       </div>

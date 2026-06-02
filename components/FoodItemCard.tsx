@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import type { NutritionResult } from '@/lib/db/types'
+import { haptic } from '@/lib/utils/haptic'
 
 type Props = {
   item: NutritionResult
@@ -61,7 +62,7 @@ export default function FoodItemCard({ item, onChange, onAdd, added, addLabel }:
         <div className="flex-1" />
         {added
           ? <span className="text-green-500 text-xs font-medium">✓ Added</span>
-          : <button onClick={onAdd} className="bg-green-500 text-black text-xs font-bold px-4 py-1.5 rounded-full">{addLabel ?? 'Add'}</button>
+          : <button onClick={() => { haptic('medium'); onAdd() }} className="bg-green-500 text-black text-xs font-bold px-4 py-1.5 rounded-full">{addLabel ?? 'Add'}</button>
         }
       </div>
 

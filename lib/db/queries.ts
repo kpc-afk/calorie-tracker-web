@@ -110,6 +110,53 @@ export async function getDailyCalorieTotals(days: number): Promise<{ date: strin
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 
+export async function computeStreak(targetCalories: number, tdee: number, deficitAmount: number): Promise<number> {
+  const supabase = await createClient()
+  const days = 60
+  const since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0]
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  const [{ data: food }, { data: activity }] = await Promise.all([
+    supabase.from('food_entries').select('date, calories').gte('date', since).lt('date', todayStr),
+    supabase.from('daily_activity').select('date, steps_calories, workout_calories').gte('date', since).lt('date', todayStr),
+  ])
+
+  if (!food) return 0
+
+  const foodByDate: Record<string, number> = {}
+  food.forEach(({ date, calories }) => { foodByDate[date] = (foodByDate[date] ?? 0) + calories })
+
+  const activityByDate: Record<string, number> = {}
+  activity?.forEach(({ date, steps_calories, workout_calories }) => {
+    activityByDate[date] = (steps_calories ?? 0) + (workout_calories ?? 0)
+  })
+
+  const baseTarget = targetCalories || (tdee - deficitAmount)
+  let streak = 0
+  const d = new Date()
+  d.setDate(d.getDate() - 1)
+
+  for (let i = 0; i < days; i++) {
+    const dateStr = d.toISOString().split('T')[0]
+    const eaten = foodByDate[dateStr] ?? 0
+    if (eaten === 0) break
+    const budget = baseTarget + (activityByDate[dateStr] ?? 0)
+    if (eaten > budget) break
+    streak++
+    d.setDate(d.getDate() - 1)
+  }
+
+  return streak
+}
+
+export async function getRecentWeights(days = 7): Promise<WeightEntry[]> {
+  const supabase = await createClient()
+  const since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0]
+  const { data } = await supabase.from('weight_entries').select('*')
+    .gte('date', since).order('date', { ascending: true })
+  return data ?? []
+}
+
 export async function get7DayMacroAverages() {
   const since = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
   const supabase = await createClient()

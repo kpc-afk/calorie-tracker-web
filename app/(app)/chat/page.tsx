@@ -71,7 +71,10 @@ export default function ChatPage() {
   }
 
   function handleTouchEnd() {
-    if (pullY >= PULL_THRESHOLD) setHistoryExpanded(true)
+    if (pullY >= PULL_THRESHOLD) {
+      setHistoryExpanded(true)
+      setTimeout(() => scrollToBottom(), 50)
+    }
     setPullY(0)
   }
 

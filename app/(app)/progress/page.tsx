@@ -1,8 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  BarChart, Bar
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  BarChart, Bar, ReferenceLine
 } from 'recharts'
 import { generateFoodCSV, downloadCSV } from '@/lib/utils/csv'
 import { todayString } from '@/lib/utils/format'
@@ -129,6 +129,14 @@ export default function ProgressPage() {
         ))}
       </div>
 
+      {view === 'charts' && !data && (
+        <div className="space-y-6">
+          {[160, 140, 140].map((h, i) => (
+            <div key={i} className="bg-zinc-900 rounded-2xl p-3 animate-pulse" style={{ height: h }} />
+          ))}
+        </div>
+      )}
+
       {view === 'charts' && data && (
         <div className="space-y-6">
           {/* Calorie trend */}
@@ -146,17 +154,23 @@ export default function ProgressPage() {
             </div>
             <div className="bg-zinc-900 rounded-2xl p-3">
               <ResponsiveContainer width="100%" height={160}>
-                <LineChart data={data.calorieTotals} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
+                <AreaChart data={data.calorieTotals} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
+                  <defs>
+                    <linearGradient id="calorieGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <XAxis dataKey="date" tick={{ fill: '#8e8e93', fontSize: 10 }}
                     tickFormatter={d => d.slice(5)} />
                   <YAxis tick={{ fill: '#8e8e93', fontSize: 10 }} />
                   <Tooltip contentStyle={tooltipStyle} labelFormatter={l => `Date: ${l}`} />
-                  <Line type="monotone" dataKey="total" stroke="#22c55e" strokeWidth={2} dot={false} name="kcal" />
                   {profile && (
-                    <Line type="monotone" dataKey={() => profile.target_calories}
-                      stroke="#3a3a3c" strokeWidth={1} strokeDasharray="4 2" dot={false} name="target" />
+                    <ReferenceLine y={profile.target_calories} stroke="#3a3a3c" strokeDasharray="4 2" />
                   )}
-                </LineChart>
+                  <Area type="monotone" dataKey="total" stroke="#22c55e" strokeWidth={2}
+                    fill="url(#calorieGrad)" dot={false} name="kcal" />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -234,14 +248,20 @@ export default function ProgressPage() {
               <h3 className="text-white font-semibold text-sm mb-3">Weight</h3>
               <div className="bg-zinc-900 rounded-2xl p-3">
                 <ResponsiveContainer width="100%" height={140}>
-                  <LineChart data={data.weightHistory} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
+                  <AreaChart data={data.weightHistory} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
+                    <defs>
+                      <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
                     <XAxis dataKey="date" tick={{ fill: '#8e8e93', fontSize: 10 }}
                       tickFormatter={d => d.slice(5)} />
                     <YAxis tick={{ fill: '#8e8e93', fontSize: 10 }} domain={['auto', 'auto']} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Line type="monotone" dataKey="weight_kg" stroke="#3b82f6" strokeWidth={2}
-                      dot={{ r: 3, fill: '#3b82f6' }} name="kg" />
-                  </LineChart>
+                    <Area type="monotone" dataKey="weight_kg" stroke="#3b82f6" strokeWidth={2}
+                      fill="url(#weightGrad)" dot={{ r: 3, fill: '#3b82f6' }} name="kg" />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>

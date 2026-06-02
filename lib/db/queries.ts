@@ -18,6 +18,14 @@ export async function upsertProfile(profile: Omit<UserProfile, 'id' | 'user_id' 
   if (error) throw new Error(`Upsert failed: ${error.message} (code: ${error.code})`)
 }
 
+export async function updateProfileFields(fields: Partial<Omit<UserProfile, 'id' | 'user_id'>>) {
+  const supabase = await createClient()
+  const { error } = await supabase.from('user_profiles')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('id', 'me')
+  if (error) throw new Error(`Update failed: ${error.message}`)
+}
+
 // Food entries
 export async function getFoodEntriesForDate(date: string): Promise<FoodEntry[]> {
   const supabase = await createClient()

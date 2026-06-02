@@ -9,6 +9,7 @@ import WaterTracker from '@/components/WaterTracker'
 import { getDailyBudget } from '@/lib/utils/calories'
 import { formatDisplayDate, todayString, offsetDate } from '@/lib/utils/format'
 import { haptic } from '@/lib/utils/haptic'
+import { useAnimatedNumber } from '@/lib/utils/useAnimatedNumber'
 import type { FoodEntry, UserProfile, DailyActivity, WeightEntry } from '@/lib/db/types'
 
 export default function DashboardPage() {
@@ -74,6 +75,10 @@ export default function DashboardPage() {
   const over = remaining < 0
   const isToday = viewDate === today
   const pct = budget > 0 ? totals.calories / budget : 0
+
+  const animBudget = useAnimatedNumber(Math.round(budget))
+  const animEaten = useAnimatedNumber(Math.round(totals.calories))
+  const animRemaining = useAnimatedNumber(Math.abs(Math.round(remaining)))
 
   // Confetti when hitting 95–100% of budget
   useEffect(() => {
@@ -209,16 +214,16 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <button className="text-center flex-1" onClick={() => setShowBudgetBreakdown(v => !v)}>
                 <div className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Budget</div>
-                <div className="text-white font-bold text-lg leading-tight">{Math.round(budget)}</div>
+                <div className="text-white font-bold text-lg leading-tight">{animBudget}</div>
               </button>
               <div className="text-center flex-1">
                 <div className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Eaten</div>
-                <div className="text-white font-bold text-lg leading-tight">{Math.round(totals.calories)}</div>
+                <div className="text-white font-bold text-lg leading-tight">{animEaten}</div>
               </div>
               <div className="text-center flex-1">
                 <div className="text-zinc-500 text-xs font-medium uppercase tracking-wider">{over ? 'Over' : 'Left'}</div>
                 <div className={`font-bold text-lg leading-tight ${over ? 'text-red-400' : 'text-green-400'}`}>
-                  {Math.abs(Math.round(remaining))}
+                  {animRemaining}
                 </div>
               </div>
             </div>
@@ -257,6 +262,19 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {/* Skeleton loaders */}
+      {!profile && (
+        <div className="flex-1 px-4 py-4 space-y-3">
+          <div className="w-56 h-56 rounded-full bg-zinc-900 animate-pulse mx-auto" />
+          <div className="bg-zinc-900 rounded-2xl p-4 animate-pulse h-20" />
+          <div className="bg-zinc-900 rounded-2xl p-4 animate-pulse h-16" />
+          <div className="h-4 bg-zinc-900 rounded animate-pulse w-1/4 mt-2" />
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-zinc-900 rounded-xl p-4 animate-pulse h-16" />
+          ))}
+        </div>
+      )}
 
       <div className="flex-1 px-4 py-4 space-y-3 pb-6">
         <CalorieRing

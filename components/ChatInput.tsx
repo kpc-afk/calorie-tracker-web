@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef, useCallback, useEffect } from 'react'
+import FoodHistoryDropdown from '@/components/FoodHistoryDropdown'
 
 type Attachment = { file: File; preview: string }
 
@@ -7,9 +8,10 @@ type Props = {
   onSend: (message: string, images: File[]) => void
   disabled?: boolean
   onBarcodeClick?: () => void
+  onHistoryAdd?: () => void
 }
 
-export default function ChatInput({ onSend, disabled, onBarcodeClick }: Props) {
+export default function ChatInput({ onSend, disabled, onBarcodeClick, onHistoryAdd }: Props) {
   const [text, setText] = useState('')
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
@@ -73,9 +75,14 @@ export default function ChatInput({ onSend, disabled, onBarcodeClick }: Props) {
   }
 
   const canSend = (text.trim().length > 0 || attachments.length > 0) && !disabled
+  const [showDropdown, setShowDropdown] = useState(false)
+
+  useEffect(() => {
+    setShowDropdown(text.trim().length >= 2)
+  }, [text])
 
   return (
-    <div className="border-t border-zinc-800 bg-zinc-900 p-3 safe-area-pb shrink-0">
+    <div className="border-t border-zinc-800 bg-zinc-900 p-3 safe-area-pb shrink-0 relative">
       {attachments.length > 0 && (
         <div className="flex gap-2 mb-2 overflow-x-auto pb-1">
           {attachments.map((a, i) => (
@@ -89,6 +96,13 @@ export default function ChatInput({ onSend, disabled, onBarcodeClick }: Props) {
             </div>
           ))}
         </div>
+      )}
+      {showDropdown && (
+        <FoodHistoryDropdown
+          query={text}
+          onAdded={() => { onHistoryAdd?.(); setShowDropdown(false) }}
+          onDismiss={() => setShowDropdown(false)}
+        />
       )}
       <div className="flex items-end gap-2">
         <button onClick={() => fileRef.current?.click()} disabled={disabled}

@@ -5,6 +5,7 @@ import ChatMessage, { type Message } from '@/components/ChatMessage'
 import SummaryStrip from '@/components/SummaryStrip'
 import FavoritesStrip from '@/components/FavoritesStrip'
 import MealTemplatesStrip from '@/components/MealTemplatesStrip'
+import FoodHistoryStrip from '@/components/FoodHistoryStrip'
 import WeeklySummaryCard from '@/components/WeeklySummaryCard'
 import BarcodeScanner from '@/components/BarcodeScanner'
 import { todayString, offsetDate, formatDisplayDate } from '@/lib/utils/format'
@@ -626,10 +627,14 @@ export default function ChatPage() {
               setMessages(prev => [...prev, msg])
             }}
           />
+          <FoodHistoryStrip
+            onAdded={() => loadContext()}
+          />
           <ChatInput
             onSend={handleSend}
             disabled={loading || scannerLoading}
             onBarcodeClick={() => setShowScanner(true)}
+            onHistoryAdd={() => loadContext()}
           />
         </div>
       )}

@@ -184,6 +184,50 @@ export default function ProgressPage() {
             </div>
           )}
 
+          {/* Day-of-week heatmap */}
+          {data.calorieTotals.length >= 7 && profile && (() => {
+            const budget = profile.target_calories
+            const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+            const buckets: { date: string; total: number }[][] = Array.from({ length: 7 }, () => [])
+            data.calorieTotals.forEach(d => {
+              const dow = (new Date(d.date + 'T12:00:00').getDay() + 6) % 7 // 0=Mon
+              buckets[dow].push(d)
+            })
+            return (
+              <div>
+                <h3 className="text-white font-semibold text-sm mb-3">Day-of-week patterns</h3>
+                <div className="bg-zinc-900 rounded-2xl p-3">
+                  <div className="flex gap-1.5">
+                    {DOW.map((day, i) => {
+                      const entries = buckets[i]
+                      const avg = entries.length > 0 ? entries.reduce((s, e) => s + e.total, 0) / entries.length : null
+                      const overCount = entries.filter(e => e.total > budget).length
+                      const ratio = avg !== null ? avg / budget : null
+                      const bg = ratio === null ? 'bg-zinc-800'
+                        : ratio > 1.05 ? 'bg-red-500/60'
+                        : ratio > 0.95 ? 'bg-green-500/60'
+                        : ratio > 0.5 ? 'bg-green-500/30'
+                        : 'bg-zinc-700'
+                      return (
+                        <div key={day} className="flex-1 flex flex-col items-center gap-1">
+                          <div className={`w-full rounded-lg py-3 flex flex-col items-center justify-center ${bg}`}>
+                            <span className="text-white font-bold text-xs">{avg !== null ? Math.round(avg) : '–'}</span>
+                          </div>
+                          <span className="text-zinc-500 text-xs">{day}</span>
+                          {overCount > 0 && <span className="text-red-400 text-xs">{overCount}×</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="flex items-center gap-3 mt-2.5 justify-end">
+                    <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm bg-green-500/60" /><span className="text-zinc-500 text-xs">on budget</span></div>
+                    <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm bg-red-500/60" /><span className="text-zinc-500 text-xs">over</span></div>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
           {/* Weight trend */}
           {data.weightHistory.length > 0 && (
             <div>
@@ -202,6 +246,38 @@ export default function ProgressPage() {
               </div>
             </div>
           )}
+
+          {/* Weight projection */}
+          {profile && profile.goal === 'lose' && data.weightHistory.length >= 3 && (() => {
+            const wh = [...data.weightHistory].sort((a, b) => a.date.localeCompare(b.date))
+            const recent = wh.slice(-14)
+            const days = recent.length
+            const kgChange = recent[days - 1].weight_kg - recent[0].weight_kg
+            const weeklyRate = days > 1 ? (kgChange / (days - 1)) * 7 : 0
+            const currentWeight = recent[days - 1].weight_kg
+            const goalWeight = profile.weight_kg * 0.9
+            const remaining = currentWeight - goalWeight
+            if (weeklyRate >= 0 || remaining <= 0) return null
+            const weeksNeeded = Math.round(remaining / Math.abs(weeklyRate))
+            const targetDate = new Date()
+            targetDate.setDate(targetDate.getDate() + weeksNeeded * 7)
+            const targetStr = targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            return (
+              <div key="projection" className="bg-zinc-900 rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-base">🎯</span>
+                  <h3 className="text-white font-semibold text-sm">Weight Projection</h3>
+                </div>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  At your current pace of{' '}
+                  <span className="text-green-400 font-semibold">{Math.abs(weeklyRate).toFixed(2)} kg/week</span>,
+                  you could reach{' '}
+                  <span className="text-white font-semibold">{goalWeight.toFixed(1)} kg</span> in ~{weeksNeeded} week{weeksNeeded !== 1 ? 's' : ''}
+                  {weeksNeeded <= 52 && <> (around <span className="text-blue-400 font-semibold">{targetStr}</span>)</>}.
+                </p>
+              </div>
+            )
+          })()}
 
           {/* Log weight */}
           <div className="bg-zinc-900 rounded-2xl p-4">

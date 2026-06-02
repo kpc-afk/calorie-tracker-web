@@ -6,15 +6,15 @@ type Attachment = { file: File; preview: string }
 type Props = {
   onSend: (message: string, images: File[]) => void
   disabled?: boolean
+  onBarcodeClick?: () => void
 }
 
-export default function ChatInput({ onSend, disabled }: Props) {
+export default function ChatInput({ onSend, disabled, onBarcodeClick }: Props) {
   const [text, setText] = useState('')
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Clean up all preview URLs on unmount
   useEffect(() => {
     return () => { attachments.forEach(a => URL.revokeObjectURL(a.preview)) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,6 +97,18 @@ export default function ChatInput({ onSend, disabled }: Props) {
         </button>
         <input ref={fileRef} type="file" accept="image/*" multiple className="hidden"
           onChange={e => { if (e.target.files) { addFiles(e.target.files); e.target.value = '' } }} />
+        {onBarcodeClick && (
+          <button onClick={onBarcodeClick} disabled={disabled}
+            className="text-zinc-500 hover:text-zinc-300 transition-colors p-1 shrink-0 mb-1 disabled:opacity-40"
+            title="Scan barcode">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 5v2M3 19v-2M5 3h2M19 3h-2M21 5v2M21 19v-2M19 21h-2M5 21h2"/>
+              <rect x="7" y="7" width="3" height="10" rx="0.5"/>
+              <rect x="11" y="7" width="1.5" height="10" rx="0.5"/>
+              <rect x="14" y="7" width="3" height="10" rx="0.5"/>
+            </svg>
+          </button>
+        )}
         <textarea
           ref={textareaRef}
           value={text}

@@ -4,6 +4,9 @@ import ChatInput from '@/components/ChatInput'
 import ChatMessage, { type Message } from '@/components/ChatMessage'
 import SummaryStrip from '@/components/SummaryStrip'
 import FavoritesStrip from '@/components/FavoritesStrip'
+import MealTemplatesStrip from '@/components/MealTemplatesStrip'
+import WeeklySummaryCard from '@/components/WeeklySummaryCard'
+import BarcodeScanner from '@/components/BarcodeScanner'
 import { todayString, offsetDate, formatDisplayDate } from '@/lib/utils/format'
 import { incrementRequestCount } from '@/app/(app)/settings/page'
 import { getDailyBudget, calculateBMR, calculateTDEE } from '@/lib/utils/calories'
@@ -45,7 +48,10 @@ export default function ChatPage() {
     return [WELCOME]
   })
   const [loading, setLoading] = useState(false)
+  const [showScanner, setShowScanner] = useState(false)
+  const [scannerLoading, setScannerLoading] = useState(false)
   const [favRefreshKey, setFavRefreshKey] = useState(0)
+  const [templateRefreshKey, setTemplateRefreshKey] = useState(0)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFilter, setSearchFilter] = useState<'all' | 'food' | 'workout' | 'steps'>('all')
@@ -233,6 +239,27 @@ export default function ChatPage() {
       setMessages(prev => [...prev, { type: 'assistant', content: 'Something went wrong. Please try again.' }])
     }
     setLoading(false)
+  }
+
+  async function handleBarcodeResult(barcode: string) {
+    setShowScanner(false)
+    setScannerLoading(true)
+    setMessages(prev => [...prev, { type: 'user', content: `📷 Scanned barcode: ${barcode}` }])
+    try {
+      const res = await fetch(`/api/barcode?code=${barcode}`)
+      if (res.status === 404) {
+        setMessages(prev => [...prev, { type: 'assistant', content: `Barcode ${barcode} wasn't found in Open Food Facts. Try describing the food instead.` }])
+      } else if (!res.ok) {
+        setMessages(prev => [...prev, { type: 'assistant', content: 'Failed to look up barcode. Try describing the food instead.' }])
+      } else {
+        const item = await res.json()
+        const response = { intent: 'food_log' as const, items: [item], message: `Found: **${item.name}**${item.brand ? ` by ${item.brand}` : ''} — nutrition data from Open Food Facts.` }
+        setMessages(prev => [...prev, { type: 'ai_response', response, date: logDate }])
+      }
+    } catch {
+      setMessages(prev => [...prev, { type: 'assistant', content: 'Barcode lookup failed. Try describing the food instead.' }])
+    }
+    setScannerLoading(false)
   }
 
   async function handleFoodAdded(items: NutritionResult[], date: string) {
@@ -475,6 +502,7 @@ export default function ChatPage() {
         )}
       </div>
       <SummaryStrip budget={budget} eaten={totals.calories} />
+      <WeeklySummaryCard />
       <div className="flex-1 relative min-h-0">
       {showScrollToBottom && (
         <button
@@ -560,7 +588,8 @@ export default function ChatPage() {
             onStepsAdded={handleStepsAdded}
             onProfileUpdated={handleProfileUpdated}
             onProfileUpdateCancelled={handleProfileUpdateCancelled}
-            onRetry={handleRetry} />
+            onRetry={handleRetry}
+            onTemplateSaved={() => setTemplateRefreshKey(k => k + 1)} />
         ))}
         {isSearching && allVisible.length === 0 && (
           <div className="text-center text-zinc-500 text-sm pt-8">No results found</div>
@@ -573,17 +602,35 @@ export default function ChatPage() {
         <div ref={bottomRef} />
       </div>
       </div>
+      {showScanner && (
+        <BarcodeScanner
+          onResult={handleBarcodeResult}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
       {!searchOpen && (
         <div className="shrink-0">
+          <MealTemplatesStrip
+            refreshKey={templateRefreshKey}
+            onAdd={(items, name) => {
+              loadContext()
+              const msg: Message = { type: 'assistant', content: `✓ Added meal **${name}** (${items.length} items) to today's log.` }
+              setMessages(prev => [...prev, msg])
+            }}
+          />
           <FavoritesStrip
             refreshKey={favRefreshKey}
             onAdd={(name) => {
-              setFavRefreshKey(k => k + 1)
+              loadContext()
               const msg: Message = { type: 'assistant', content: `✓ Added **${name}** to today's log.` }
               setMessages(prev => [...prev, msg])
             }}
           />
-          <ChatInput onSend={handleSend} disabled={loading} />
+          <ChatInput
+            onSend={handleSend}
+            disabled={loading || scannerLoading}
+            onBarcodeClick={() => setShowScanner(true)}
+          />
         </div>
       )}
     </div>

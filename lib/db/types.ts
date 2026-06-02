@@ -63,6 +63,7 @@ export type DailyActivity = {
   workout_calories: number
   workout_description?: string
   workout_image_urls: string[]
+  water_ml: number
   created_at: string
 }
 
@@ -98,6 +99,15 @@ export type SavedFood = {
   sodium: number
   saturated_fat: number
   cholesterol: number
+  created_at: string
+}
+
+export type MealTemplate = {
+  id: string
+  user_id: string
+  name: string
+  items: NutritionResult[]
+  total_calories: number
   created_at: string
 }
 

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import type { UserProfile, FoodEntry, WeightEntry, DailyActivity, SavedFood } from './types'
+import type { UserProfile, FoodEntry, WeightEntry, DailyActivity, SavedFood, MealTemplate, NutritionResult } from './types'
 
 // Profile
 export async function getProfile(): Promise<UserProfile | null> {
@@ -173,6 +173,25 @@ export async function saveFavoriteFood(food: Omit<SavedFood, 'id' | 'user_id' | 
 export async function deleteSavedFood(id: string) {
   const supabase = await createClient()
   await supabase.from('saved_foods').delete().eq('id', id)
+}
+
+// Meal templates
+export async function getMealTemplates(): Promise<MealTemplate[]> {
+  const supabase = await createClient()
+  const { data } = await supabase.from('meal_templates').select('*').order('created_at', { ascending: false })
+  return data ?? []
+}
+
+export async function saveMealTemplate(name: string, items: NutritionResult[]) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const total_calories = items.reduce((s, i) => s + i.calories, 0)
+  await supabase.from('meal_templates').insert({ name, items, total_calories, user_id: user!.id })
+}
+
+export async function deleteMealTemplate(id: string) {
+  const supabase = await createClient()
+  await supabase.from('meal_templates').delete().eq('id', id)
 }
 
 export async function get7DayMacroAverages() {

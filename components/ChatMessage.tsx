@@ -19,9 +19,10 @@ type Props = {
   onProfileUpdated: (updates: ProfileUpdateFields) => void
   onProfileUpdateCancelled: () => void
   onRetry?: () => void
+  onTemplateSaved?: () => void
 }
 
-export default function ChatMessage({ message, logDate, isHistory, onFoodAdded, onWorkoutAdded, onStepsAdded, onProfileUpdated, onProfileUpdateCancelled, onRetry }: Props) {
+export default function ChatMessage({ message, logDate, isHistory, onFoodAdded, onWorkoutAdded, onStepsAdded, onProfileUpdated, onProfileUpdateCancelled, onRetry, onTemplateSaved }: Props) {
   const [addedItems, setAddedItems] = useState<Set<number>>(new Set())
   const [allAdded, setAllAdded] = useState(false)
   const [workoutAdded, setWorkoutAdded] = useState(false)
@@ -32,6 +33,9 @@ export default function ChatMessage({ message, logDate, isHistory, onFoodAdded, 
       ? [...message.response.items]
       : []
   )
+  const [showSaveMeal, setShowSaveMeal] = useState(false)
+  const [mealName, setMealName] = useState('')
+  const [mealSaved, setMealSaved] = useState(false)
 
   if (message.type === 'user') return (
     <div className="flex justify-end">
@@ -102,6 +106,42 @@ export default function ChatMessage({ message, logDate, isHistory, onFoodAdded, 
           {isHistory ? `Add all ${localItems.length} to ${logDate}` : `Add all ${localItems.length} items`}
         </button>
       )}
+      {!isHistory && !mealSaved && localItems.length >= 2 && (
+        showSaveMeal ? (
+          <div className="flex gap-2 items-center">
+            <input
+              value={mealName}
+              onChange={e => setMealName(e.target.value)}
+              placeholder="Meal name (e.g. Chicken Bowl)"
+              className="flex-1 bg-zinc-800 text-white text-sm rounded-xl px-3 py-2 focus:outline-none border border-zinc-700 focus:border-zinc-500"
+              autoFocus
+            />
+            <button
+              onClick={async () => {
+                if (!mealName.trim()) return
+                await fetch('/api/templates', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ name: mealName.trim(), items: localItems }),
+                })
+                setMealSaved(true)
+                setShowSaveMeal(false)
+                onTemplateSaved?.()
+              }}
+              disabled={!mealName.trim()}
+              className="bg-zinc-700 text-white text-sm font-semibold px-3 py-2 rounded-xl disabled:opacity-40">
+              Save
+            </button>
+            <button onClick={() => setShowSaveMeal(false)} className="text-zinc-500 hover:text-zinc-300 text-sm px-2">✕</button>
+          </div>
+        ) : (
+          <button onClick={() => setShowSaveMeal(true)}
+            className="text-zinc-500 hover:text-zinc-300 text-xs font-medium transition-colors">
+            + Save as meal template
+          </button>
+        )
+      )}
+      {mealSaved && <div className="text-zinc-500 text-xs">✓ Saved as meal template</div>}
     </div>
   )
 

@@ -5,6 +5,7 @@ import MacroBar from '@/components/MacroBar'
 import FoodCard from '@/components/FoodCard'
 import ActivityStrip from '@/components/ActivityStrip'
 import WeightSparkline from '@/components/WeightSparkline'
+import WaterTracker from '@/components/WaterTracker'
 import { getDailyBudget } from '@/lib/utils/calories'
 import { formatDisplayDate, todayString, offsetDate } from '@/lib/utils/format'
 import { haptic } from '@/lib/utils/haptic'
@@ -17,6 +18,7 @@ export default function DashboardPage() {
   const [viewDate, setViewDate] = useState(todayString())
   const [streak, setStreak] = useState(0)
   const [recentWeights, setRecentWeights] = useState<WeightEntry[]>([])
+  const [waterMl, setWaterMl] = useState(0)
   const [showManualAdd, setShowManualAdd] = useState(false)
   const [manualForm, setManualForm] = useState({ name: '', calories: '', protein: '', carbs: '', fat: '', serving_size: '1', serving_unit: 'serving' })
   const [manualSaving, setManualSaving] = useState(false)
@@ -33,6 +35,7 @@ export default function DashboardPage() {
     setProfile(p)
     setEntries(e ?? [])
     setActivity(a)
+    setWaterMl(a?.water_ml ?? 0)
   }, [])
 
   useEffect(() => { loadData(viewDate) }, [viewDate, loadData])
@@ -232,6 +235,12 @@ export default function DashboardPage() {
           workoutCalories={workoutCalories}
           onDeleteSteps={handleDeleteSteps}
           onDeleteWorkout={handleDeleteWorkout}
+        />
+
+        <WaterTracker
+          waterMl={waterMl}
+          date={viewDate}
+          onChange={setWaterMl}
         />
 
         {/* Food log */}

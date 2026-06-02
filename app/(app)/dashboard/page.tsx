@@ -20,6 +20,8 @@ export default function DashboardPage() {
   const [recentWeights, setRecentWeights] = useState<WeightEntry[]>([])
   const [waterMl, setWaterMl] = useState(0)
   const [showManualAdd, setShowManualAdd] = useState(false)
+  const [showBudgetBreakdown, setShowBudgetBreakdown] = useState(false)
+  const [copyingYesterday, setCopyingYesterday] = useState(false)
   const [manualForm, setManualForm] = useState({ name: '', calories: '', protein: '', carbs: '', fat: '', serving_size: '1', serving_unit: 'serving' })
   const [manualSaving, setManualSaving] = useState(false)
   const celebratedRef = useRef(false)
@@ -136,6 +138,18 @@ export default function DashboardPage() {
     loadData(viewDate)
   }
 
+  async function handleCopyYesterday() {
+    setCopyingYesterday(true)
+    haptic('medium')
+    await fetch('/api/entries/copy-yesterday', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetDate: viewDate }),
+    })
+    setCopyingYesterday(false)
+    loadData(viewDate)
+  }
+
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const statusLine = !profile ? '' : over
@@ -191,22 +205,56 @@ export default function DashboardPage() {
 
         {/* Budget summary row */}
         {profile && (
-          <div className="flex items-center justify-between">
-            <div className="text-center flex-1">
-              <div className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Budget</div>
-              <div className="text-white font-bold text-lg leading-tight">{Math.round(budget)}</div>
-            </div>
-            <div className="text-center flex-1">
-              <div className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Eaten</div>
-              <div className="text-white font-bold text-lg leading-tight">{Math.round(totals.calories)}</div>
-            </div>
-            <div className="text-center flex-1">
-              <div className="text-zinc-500 text-xs font-medium uppercase tracking-wider">{over ? 'Over' : 'Left'}</div>
-              <div className={`font-bold text-lg leading-tight ${over ? 'text-red-400' : 'text-green-400'}`}>
-                {Math.abs(Math.round(remaining))}
+          <>
+            <div className="flex items-center justify-between">
+              <button className="text-center flex-1" onClick={() => setShowBudgetBreakdown(v => !v)}>
+                <div className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Budget</div>
+                <div className="text-white font-bold text-lg leading-tight">{Math.round(budget)}</div>
+              </button>
+              <div className="text-center flex-1">
+                <div className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Eaten</div>
+                <div className="text-white font-bold text-lg leading-tight">{Math.round(totals.calories)}</div>
+              </div>
+              <div className="text-center flex-1">
+                <div className="text-zinc-500 text-xs font-medium uppercase tracking-wider">{over ? 'Over' : 'Left'}</div>
+                <div className={`font-bold text-lg leading-tight ${over ? 'text-red-400' : 'text-green-400'}`}>
+                  {Math.abs(Math.round(remaining))}
+                </div>
               </div>
             </div>
-          </div>
+            {showBudgetBreakdown && (
+              <div className="mt-3 bg-zinc-800/70 rounded-2xl p-3 text-xs space-y-1.5">
+                <div className="flex justify-between text-zinc-400">
+                  <span>TDEE</span>
+                  <span className="text-white font-medium">{Math.round(profile.tdee || Math.round(profile.bmr * 1.2))} kcal</span>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Deficit</span>
+                  <span className="text-red-400 font-medium">− {Math.round(profile.deficit_amount)} kcal</span>
+                </div>
+                <div className="flex justify-between text-zinc-500 border-t border-zinc-700/60 pt-1.5">
+                  <span>Base target</span>
+                  <span className="text-white font-medium">{Math.round((profile.tdee || Math.round(profile.bmr * 1.2)) - profile.deficit_amount)} kcal</span>
+                </div>
+                {stepsCalories > 0 && (
+                  <div className="flex justify-between text-zinc-400">
+                    <span>Steps bonus</span>
+                    <span className="text-green-400 font-medium">+ {Math.round(stepsCalories)} kcal</span>
+                  </div>
+                )}
+                {workoutCalories > 0 && (
+                  <div className="flex justify-between text-zinc-400">
+                    <span>Workout bonus</span>
+                    <span className="text-green-400 font-medium">+ {Math.round(workoutCalories)} kcal</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t border-zinc-700/60 pt-1.5 text-zinc-300 font-semibold">
+                  <span>Daily budget</span>
+                  <span className="text-white">{Math.round(budget)} kcal</span>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -250,6 +298,12 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2">
               {entries.length > 0 && (
                 <span className="text-zinc-600 text-xs">{entries.length} items · {Math.round(totals.calories)} kcal</span>
+              )}
+              {entries.length === 0 && isToday && (
+                <button onClick={handleCopyYesterday} disabled={copyingYesterday}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-400 hover:text-white transition-colors disabled:opacity-50">
+                  {copyingYesterday ? 'Copying…' : 'Copy yesterday'}
+                </button>
               )}
               <button onClick={() => setShowManualAdd(v => !v)}
                 className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${showManualAdd ? 'bg-green-500 text-black' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>

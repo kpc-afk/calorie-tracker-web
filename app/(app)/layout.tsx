@@ -29,6 +29,16 @@ function ProgressIcon() {
   )
 }
 
+function CoachIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function SettingsIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -42,6 +52,7 @@ const tabs = [
   { href: '/chat', label: 'Chat', Icon: ChatIcon },
   { href: '/dashboard', label: 'Log', Icon: LogIcon },
   { href: '/progress', label: 'Progress', Icon: ProgressIcon },
+  { href: '/coach', label: 'Coach', Icon: CoachIcon },
   { href: '/settings', label: 'Settings', Icon: SettingsIcon },
 ]
 
@@ -55,7 +66,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           const active = pathname === href
           return (
             <Link key={href} href={href}
-              className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-colors ${active ? 'text-green-400' : 'text-zinc-500'}`}>
+              className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-colors relative ${active ? 'text-green-400' : 'text-zinc-500'}`}>
+              {active && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-green-400 rounded-full" />
+              )}
               <Icon />
               <span className="text-[10px] font-semibold tracking-wide">{label}</span>
             </Link>

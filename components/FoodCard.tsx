@@ -1,13 +1,37 @@
 'use client'
+import { useState } from 'react'
 import type { FoodEntry } from '@/lib/db/types'
 
 type Props = { entry: FoodEntry; onDelete: (id: string) => void }
 
 export default function FoodCard({ entry, onDelete }: Props) {
+  const [saved, setSaved] = useState(false)
   const proteinKcal = entry.protein * 4
   const carbsKcal = entry.carbs * 4
   const fatKcal = entry.fat * 9
   const totalMacroKcal = proteinKcal + carbsKcal + fatKcal
+
+  async function handleSave() {
+    setSaved(true)
+    await fetch('/api/favorites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: entry.name,
+        serving_size: String(entry.serving_size),
+        serving_unit: entry.serving_unit,
+        calories: entry.calories,
+        protein: entry.protein,
+        carbs: entry.carbs,
+        fat: entry.fat,
+        fiber: entry.fiber,
+        sugar: entry.sugar,
+        sodium: entry.sodium,
+        saturated_fat: entry.saturated_fat,
+        cholesterol: entry.cholesterol,
+      }),
+    })
+  }
 
   return (
     <div className="flex items-center justify-between bg-zinc-900 rounded-xl px-4 py-3 gap-3">
@@ -28,8 +52,13 @@ export default function FoodCard({ entry, onDelete }: Props) {
           </div>
         )}
       </div>
-      <div className="flex items-center gap-3 shrink-0">
-        <div className="text-right">
+      <div className="flex items-center gap-2 shrink-0">
+        <button onClick={handleSave} disabled={saved}
+          className={`text-base leading-none transition-colors ${saved ? 'text-yellow-400' : 'text-zinc-700 hover:text-yellow-400'}`}
+          title={saved ? 'Saved to favorites' : 'Save to favorites'}>
+          ★
+        </button>
+        <div className="text-right ml-1">
           <div className="text-green-400 font-bold text-sm">{Math.round(entry.calories)}</div>
           <div className="text-zinc-600 text-xs">kcal</div>
         </div>

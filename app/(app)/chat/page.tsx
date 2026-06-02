@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import ChatInput from '@/components/ChatInput'
 import ChatMessage, { type Message } from '@/components/ChatMessage'
 import SummaryStrip from '@/components/SummaryStrip'
+import FavoritesStrip from '@/components/FavoritesStrip'
 import { todayString, offsetDate, formatDisplayDate } from '@/lib/utils/format'
 import { incrementRequestCount } from '@/app/(app)/settings/page'
 import { getDailyBudget, calculateBMR, calculateTDEE } from '@/lib/utils/calories'
@@ -44,6 +45,7 @@ export default function ChatPage() {
     return [WELCOME]
   })
   const [loading, setLoading] = useState(false)
+  const [favRefreshKey, setFavRefreshKey] = useState(0)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFilter, setSearchFilter] = useState<'all' | 'food' | 'workout' | 'steps'>('all')
@@ -571,7 +573,19 @@ export default function ChatPage() {
         <div ref={bottomRef} />
       </div>
       </div>
-      {!searchOpen && <ChatInput onSend={handleSend} disabled={loading} />}
+      {!searchOpen && (
+        <div className="shrink-0">
+          <FavoritesStrip
+            refreshKey={favRefreshKey}
+            onAdd={(name) => {
+              setFavRefreshKey(k => k + 1)
+              const msg: Message = { type: 'assistant', content: `✓ Added **${name}** to today's log.` }
+              setMessages(prev => [...prev, msg])
+            }}
+          />
+          <ChatInput onSend={handleSend} disabled={loading} />
+        </div>
+      )}
     </div>
   )
 }

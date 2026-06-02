@@ -83,6 +83,24 @@ export type NutritionResult = {
   commentary: string
 }
 
+export type SavedFood = {
+  id: string
+  user_id: string
+  name: string
+  serving_size: string
+  serving_unit: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber: number
+  sugar: number
+  sodium: number
+  saturated_fat: number
+  cholesterol: number
+  created_at: string
+}
+
 export type ProfileUpdateFields = {
   goal?: 'lose' | 'maintain' | 'gain'
   activity_level?: ActivityLevel

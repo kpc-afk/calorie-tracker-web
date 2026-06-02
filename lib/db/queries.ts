@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import type { UserProfile, FoodEntry, WeightEntry, DailyActivity } from './types'
+import type { UserProfile, FoodEntry, WeightEntry, DailyActivity, SavedFood } from './types'
 
 // Profile
 export async function getProfile(): Promise<UserProfile | null> {
@@ -155,6 +155,24 @@ export async function getRecentWeights(days = 7): Promise<WeightEntry[]> {
   const { data } = await supabase.from('weight_entries').select('*')
     .gte('date', since).order('date', { ascending: true })
   return data ?? []
+}
+
+// Saved foods (favorites)
+export async function getSavedFoods(): Promise<SavedFood[]> {
+  const supabase = await createClient()
+  const { data } = await supabase.from('saved_foods').select('*').order('created_at', { ascending: false })
+  return data ?? []
+}
+
+export async function saveFavoriteFood(food: Omit<SavedFood, 'id' | 'user_id' | 'created_at'>) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  await supabase.from('saved_foods').insert({ ...food, user_id: user!.id })
+}
+
+export async function deleteSavedFood(id: string) {
+  const supabase = await createClient()
+  await supabase.from('saved_foods').delete().eq('id', id)
 }
 
 export async function get7DayMacroAverages() {

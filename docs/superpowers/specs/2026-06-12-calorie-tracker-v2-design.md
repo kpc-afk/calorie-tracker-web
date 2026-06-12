@@ -1,7 +1,8 @@
 # Calorie Tracker v2 — "Editorial Instrument"
 
-Full visual redesign + reliability, analytics, and budget-intelligence upgrade. Single-user
-personal app (Kyle). Approved scope, 2026-06-12.
+Full visual redesign + reliability, analytics, and budget-intelligence upgrade, plus an
+audited overhaul of all Gemini prompts and the calorie budget model. Single-user personal
+app (Kyle). Approved scope, 2026-06-12 (audit additions approved same day).
 
 ## Goals
 
@@ -75,6 +76,24 @@ frontend-design skill for these batches).
 **Protein-first display**: protein countdown ("82g to go") gets equal visual billing with
 calories remaining on the dashboard — Kyle has a hard 130g/day floor.
 
+**Display-logic fixes (audit findings, fold into the redesign)**
+- **Remaining is the hero numeral**, not "eaten" — it's the actionable number. Ring
+  progress stays, but the center shows remaining (vermilion + "over" framing when
+  negative).
+- **No 85% warning color**: the current orange-at-85% punishes eating budgeted food. Ring
+  is neutral chartreuse until genuinely over; pace/over signals only.
+- **One budget breakdown**, not two: remove the duplicate (header toggle + permanent card
+  under the ring) — single bottom-sheet/expand opened by tapping the ring or budget figure,
+  showing the full v2 math chain.
+- **Macro semantics**: protein is a floor (over = good, shows "Xg to go" → "✓"), carbs/fat
+  are caps (over = vermilion). Carb cap computed dynamically from the day's actual budget:
+  `(budget − protein_target×4 − fat_target×9) / 4` shown as carb headroom; protein/fat
+  targets fixed.
+- **Meal grouping**: food log grouped by time-of-day from `created_at` (breakfast / lunch /
+  dinner / snacks) — display-only, no schema change.
+- **Manual-add form**: drop serving size/unit fields (noise); name + kcal + macros only.
+- **Food card detail**: surface stored-but-hidden fiber/sugar in the expanded card view.
+
 ## 2. AI reliability layer
 
 New `lib/ai/client.ts` wrapping every Gemini call (all API routes migrate to it):
@@ -92,7 +111,67 @@ New `lib/ai/client.ts` wrapping every Gemini call (all API routes migrate to it)
   structured JSON (can't stream), so chat shows staged progress states
   ("Reading photo… / Estimating macros…") plus skeleton food cards while waiting.
 - **Call audit**: remove/forbid any AI call not directly user-initiated. Reusable outputs
-  (weekly review) are generated once and cached in the `insights` table.
+  (weekly review) are generated once and cached in the `insights` table. Delete the dead
+  `/api/coaching-nudge` route (UI was removed; nothing references it).
+
+### 2b. Prompt overhaul (all Gemini call sites — audit findings)
+
+- **Structured output**: replace prose JSON-shape descriptions + string parsing with
+  Gemini `responseSchema` (discriminated union over the 5 intents) on the dispatcher, and
+  schemas on serving-size. Eliminates the parse-failure class. Implementer verifies
+  `responseSchema` coexists with `thinkingConfig` on the current model; keep `parseJSON`
+  only as a last-resort fallback.
+- **Few-shot examples** in the dispatcher: 2–3 static examples (text meal → food_log JSON;
+  follow-up correction → revised item; profile change → profile_update_pending). Examples
+  use placeholder numbers, never live profile values (today the profile-update example
+  bakes in the user's actual TDEE — invites echoing).
+- **Estimation calibration rules** in the food-log instructions: assume UK/London portions
+  and brands (Pret, Tesco meal deal, Nando's…); state the portion assumption in
+  `commentary`; self-check that 4×P + 4×C + 9×F ≈ calories (±10%) and adjust before
+  answering.
+- **No model arithmetic**: the model returns `steps` only; the server computes step
+  calories deterministically (current prompt asks the model to multiply — LLMs flub math).
+- **Persona derives from profile**: rest/workout-day intake ranges, protein floor, deficit
+  rules are currently hardcoded prose that will go stale once adaptive targets ship. Build
+  the persona block from live profile fields + the v2 budget model at request time.
+- **Structured session recap**: include a compact list of items logged this session
+  (name, kcal, P/C/F) in the dispatcher context so corrections like "actually a large
+  portion" are grounded — flattened chat text alone is lossy.
+- **Coach route**: verify `systemInstruction` placement — it is passed to `startChat()`
+  where the SDK may silently ignore it (belongs on `getGenerativeModel`); the coach may
+  currently run without its system prompt. Replace the 14-day raw item dump with the
+  server-computed digest (§7).
+- **Weekly summary route**: rebuild on v2 math — per-day budgets must include that day's
+  actual activity (today it uses zero, undercounting compliance on workout days); weight
+  change from trend, not two raw weigh-ins; tone unified with the direct, no-cheerleading
+  persona.
+- **Timezone correctness**: API routes derive "today" via `toISOString()` (UTC). During
+  BST, late-night logging lands on the wrong date (streaks, copy-yesterday, summaries).
+  Centralize: prefer client-supplied dates; where the server must compute, use
+  Europe/London via a single `lib/utils/dates.ts` helper.
+
+### 2c. Budget model v2 (approved fix — changes daily numbers)
+
+Current formula double-counts activity (TDEE baseline 1.2× already includes everyday
+movement, then every step is credited on top) and credits gross rather than net exercise
+cost — paying ~1,950–2,150 kcal on days the user's stated target is 1,600–1,700.
+
+New model in `lib/utils/calories.ts`:
+
+```
+effectiveTdee   = getEffectiveTdee(profile)        // single helper, replaces 6+ scattered `bmr*1.2` fallbacks
+stepsBonus      = max(0, steps − baseline_steps) × 0.000571 × weight_kg × earn_back_rate
+workoutBonus    = workout_calories × earn_back_rate
+dailyBudget     = effectiveTdee − deficit_amount + stepsBonus + workoutBonus
+```
+
+- New profile knobs (migration): `baseline_steps int default 5000`,
+  `earn_back_rate numeric default 0.75` — both editable in Settings with a short
+  explanation; budget breakdown UI shows the math transparently
+  ("STEPS · 10,240 − 5,000 baseline → +178 kcal at 75%").
+- All consumers (dashboard, dispatcher prompt, weekly summary, banking, compliance,
+  adaptive targets) use the same helper — one source of truth.
+- Sanity target: 83 kg, 10k steps + typical Stairmaster session ≈ 1,650–1,700 kcal budget.
 
 ## 3. Data/speed layer
 
@@ -176,9 +255,14 @@ Informational weekly view — daily budget model stays the source of truth:
 
 ## 9. Migration (additive)
 
-`supabase/migrations/002_v2.sql`:
+`supabase/migrations/002_v2.sql` (lands in Batch 1 since the budget knobs are needed
+early):
 
 ```sql
+alter table public.user_profiles
+  add column baseline_steps int not null default 5000,
+  add column earn_back_rate numeric not null default 0.75;
+
 create table public.insights (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users not null,
@@ -196,13 +280,13 @@ create table public.insights (
 | # | Batch | Contents |
 |---|-------|----------|
 | 0 | Prep | Commit the two pending working-tree changes (weight sync on profile update; coach nudge removal) |
-| 1 | AI reliability | `lib/ai/client.ts` retry/fallback, typed errors, retry button in chat, coach streaming, staged progress for food logging, call audit |
+| 1 | Correctness foundation | Migration 002; budget model v2 + `getEffectiveTdee` (§2c); prompt overhaul (§2b); `lib/ai/client.ts` retry/fallback + typed errors + retry button in chat; staged progress for food logging; timezone helper sweep; delete coaching-nudge |
 | 2 | Design system | Fonts, tokens, primitives (StatNumeral, HairlineCard, MicroLabel, restyled CalorieRing/MacroBar), app shell + tab bar redesign |
-| 3 | Dashboard/Log | Full redesign incl. protein-first countdown + banking strip; data cache + optimistic updates |
-| 4 | Chat | Full redesign; staged progress UX; food cards/strips restyled |
-| 5 | Progress + analytics | Full redesign; weight trend, TDEE back-calc, goal ETA, compliance, food patterns; migration 002 lands here |
+| 3 | Dashboard/Log | Full redesign incl. remaining-hero ring, protein-first countdown, single budget breakdown, macro floor/cap semantics, meal grouping, banking strip; data cache + optimistic updates |
+| 4 | Chat | Full redesign; staged progress UX; food cards/strips restyled; trimmed manual-add |
+| 5 | Progress + analytics | Full redesign; weight trend, TDEE back-calc, goal ETA, compliance (v2 budgets), food patterns; weekly summary rebuilt |
 | 6 | Adaptive targets | Suggestion engine + card UI + apply/dismiss flow |
-| 7 | Coach + Settings | Redesign both; coach digest; weekly review (DB-cached) |
+| 7 | Coach + Settings | Redesign both; coach digest + streaming + systemInstruction fix; weekly review (DB-cached); budget-knob settings UI |
 | 8 | Health sync | Endpoint + service-role client + Shortcut recipe doc |
 
 **Verification per batch**: `npm run build` passes; Playwright (or dev-server screenshot)

@@ -756,7 +756,7 @@ export function computeWeekBank(elapsedDays: DayLedger[], today: string, todayBu
 
 **Files:** Create `lib/utils/analytics.ts`, `lib/utils/analytics.test.ts`
 
-- [ ] **Step 1:** Failing tests `lib/utils/analytics.test.ts`:
+- [x] **Step 1:** Failing tests `lib/utils/analytics.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -812,7 +812,7 @@ describe('foodPatterns', () => {
 })
 ```
 
-- [ ] **Step 2:** `npm test` — FAIL. Implement `lib/utils/analytics.ts`:
+- [x] **Step 2:** `npm test` — FAIL. Implement `lib/utils/analytics.ts`:
 
 ```ts
 import { addDays } from './dates'
@@ -869,7 +869,7 @@ export function foodPatterns(entries: PatternEntry[], overBudgetDates: Set<strin
 }
 ```
 
-- [ ] **Step 3:** `npm test` — PASS. Commit: `git commit -am "feat: analytics math — trend, TDEE back-calc, ETA, patterns"`
+- [x] **Step 3:** `npm test` — PASS. Commit: `git commit -am "feat: analytics math — trend, TDEE back-calc, ETA, patterns"`
 
 ### Task 15: Analytics API
 

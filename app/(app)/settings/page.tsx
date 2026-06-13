@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import type { UserProfile } from '@/lib/db/types'
 import { kgToLbs, cmToFtIn, todayString } from '@/lib/utils/format'
-import { ACTIVITY_LABELS } from '@/lib/utils/calories'
+import { ACTIVITY_LABELS, getEffectiveTdee } from '@/lib/utils/calories'
 
 const DAILY_LIMIT = 500
 const MINUTE_LIMIT = 10
@@ -145,7 +145,7 @@ export default function SettingsPage() {
   const weightDisplay = profile.weight_unit === 'lbs'
     ? `${kgToLbs(profile.weight_kg)} lbs`
     : `${profile.weight_kg} kg`
-  const tdee = (profile.tdee || Math.round(profile.bmr * 1.2))
+  const tdee = getEffectiveTdee(profile)
   const initial = (profile as UserProfile & { name?: string; email?: string }).email?.[0]?.toUpperCase() ?? '?'
   const email = (profile as UserProfile & { email?: string }).email ?? ''
 

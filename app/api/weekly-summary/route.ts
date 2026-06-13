@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server'
 import { getProfile } from '@/lib/db/queries'
 import { getFoodEntriesInRange } from '@/lib/db/queries'
 import { getWeightHistory } from '@/lib/db/queries'
+import { getActivityRange } from '@/lib/db/queries'
 import { flashModelText } from '@/lib/ai/gemini'
-import { getDailyBudget } from '@/lib/utils/calories'
+import { getBudgetBreakdown } from '@/lib/utils/calories'
 import { todayLondon, addDays, weekStart } from '@/lib/utils/dates'
 
 export async function GET() {
@@ -14,17 +15,20 @@ export async function GET() {
     const startDate = addDays(weekStart(todayLondon()), -7) // previous week's Monday
     const endDate = addDays(startDate, 6) // previous week's Sunday
 
-    const [entries, weights] = await Promise.all([
+    const [entries, weights, activity] = await Promise.all([
       getFoodEntriesInRange(startDate, endDate),
       getWeightHistory(30),
+      getActivityRange(14),
     ])
 
-    const budget = getDailyBudget({
-      tdee: profile.tdee || Math.round(profile.bmr * 1.2),
-      deficitAmount: profile.deficit_amount,
-      stepsCalories: 0,
-      workoutCalories: 0,
+    const activityByDate: Record<string, { steps_count: number; workout_calories: number }> = {}
+    activity.forEach(a => {
+      if (a.date >= startDate && a.date <= endDate) {
+        activityByDate[a.date] = { steps_count: a.steps_count, workout_calories: a.workout_calories }
+      }
     })
+
+    const budget = getBudgetBreakdown(profile, 0, 0).total
 
     const byDate: Record<string, { calories: number; protein: number }> = {}
     entries.forEach(e => {
@@ -33,10 +37,14 @@ export async function GET() {
       byDate[e.date].protein += e.protein
     })
 
-    const days = Object.values(byDate)
+    const days = Object.entries(byDate).map(([date, totals]) => {
+      const act = activityByDate[date]
+      const dayBudget = getBudgetBreakdown(profile, act?.steps_count ?? 0, act?.workout_calories ?? 0).total
+      return { ...totals, budget: dayBudget }
+    })
     const avgCalories = days.length > 0 ? Math.round(days.reduce((s, d) => s + d.calories, 0) / days.length) : 0
     const proteinHitDays = days.filter(d => d.protein >= profile.protein_target_g).length
-    const onBudgetDays = days.filter(d => d.calories <= budget).length
+    const onBudgetDays = days.filter(d => d.calories <= d.budget).length
 
     const recentWeights = weights.slice(-14)
     const weightChange = recentWeights.length >= 2

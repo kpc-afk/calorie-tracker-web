@@ -1,5 +1,5 @@
 import { flashModel, parseJSON } from './gemini'
-import { ACTIVITY_LABELS } from '@/lib/utils/calories'
+import { ACTIVITY_LABELS, getEffectiveTdee } from '@/lib/utils/calories'
 import type { ChatResponse, UserProfile } from '@/lib/db/types'
 
 type DailyContext = {
@@ -41,7 +41,7 @@ export async function dispatchChat(params: {
 }): Promise<ChatResponse> {
   const { message, imageBase64Array, imageMimeTypes, profile, todayContext } = params
 
-  const tdee = (profile.tdee || Math.round(profile.bmr * 1.2))
+  const tdee = getEffectiveTdee(profile)
   const budget = tdee - profile.deficit_amount + todayContext.stepsCalories + todayContext.workoutCalories
   const remaining = budget - todayContext.caloriesEaten
   const activityLabel = profile.activity_level ? (ACTIVITY_LABELS[profile.activity_level] ?? profile.activity_level) : 'Sedentary'

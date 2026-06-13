@@ -48,13 +48,42 @@ export function stepsToCalories(steps: number, weightKg: number): number {
   return Math.round(steps * 0.000571 * weightKg)
 }
 
-export function getDailyBudget(params: {
-  tdee: number
-  deficitAmount: number
-  stepsCalories: number
+export type BudgetBreakdown = {
+  effectiveTdee: number
+  deficit: number
+  baseTarget: number
+  stepsCount: number
+  baselineSteps: number
+  stepsBonus: number
   workoutCalories: number
-}): number {
-  return Math.round(
-    params.tdee - params.deficitAmount + params.stepsCalories + params.workoutCalories
-  )
+  workoutBonus: number
+  earnBackRate: number
+  total: number
+}
+
+type TdeeFields = { tdee?: number; bmr: number }
+type BudgetProfile = TdeeFields & {
+  weight_kg: number
+  deficit_amount: number
+  baseline_steps?: number
+  earn_back_rate?: number
+}
+
+export function getEffectiveTdee(p: TdeeFields): number {
+  return Math.round(p.tdee || p.bmr * 1.2)
+}
+
+export function getBudgetBreakdown(p: BudgetProfile, stepsCount: number, workoutCalories: number): BudgetBreakdown {
+  const effectiveTdee = getEffectiveTdee(p)
+  const baselineSteps = p.baseline_steps ?? 5000
+  const earnBackRate = p.earn_back_rate ?? 0.75
+  const baseTarget = effectiveTdee - p.deficit_amount
+  const stepsBonus = Math.round(Math.max(0, stepsCount - baselineSteps) * 0.000571 * p.weight_kg * earnBackRate)
+  const workoutBonus = Math.round(workoutCalories * earnBackRate)
+  return {
+    effectiveTdee, deficit: p.deficit_amount, baseTarget,
+    stepsCount, baselineSteps, stepsBonus,
+    workoutCalories, workoutBonus, earnBackRate,
+    total: baseTarget + stepsBonus + workoutBonus,
+  }
 }

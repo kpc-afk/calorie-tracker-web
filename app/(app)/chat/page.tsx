@@ -10,7 +10,7 @@ import WeeklySummaryCard from '@/components/WeeklySummaryCard'
 import BarcodeScanner from '@/components/BarcodeScanner'
 import { todayString, offsetDate, formatDisplayDate } from '@/lib/utils/format'
 import { incrementRequestCount } from '@/app/(app)/settings/page'
-import { getDailyBudget, calculateBMR, calculateTDEE } from '@/lib/utils/calories'
+import { getBudgetBreakdown, getEffectiveTdee, calculateBMR, calculateTDEE } from '@/lib/utils/calories'
 import type { NutritionResult, UserProfile, DailyActivity, FoodEntry, ProfileUpdateFields } from '@/lib/db/types'
 
 const WELCOME: Message = {
@@ -156,12 +156,7 @@ export default function ChatPage() {
   )
 
   const budget = profile
-    ? getDailyBudget({
-        tdee: (profile.tdee || Math.round(profile.bmr * 1.2)),
-        deficitAmount: profile.deficit_amount,
-        stepsCalories: activity?.steps_calories ?? 0,
-        workoutCalories: activity?.workout_calories ?? 0,
-      })
+    ? getBudgetBreakdown(profile, activity?.steps_count ?? 0, activity?.workout_calories ?? 0).total
     : 0
 
   const chatHistory: { role: 'user' | 'assistant'; content: string }[] = []
@@ -328,7 +323,7 @@ export default function ChatPage() {
       merged.tdee = calculateTDEE(merged.bmr, profile.activity_level ?? 'sedentary')
     }
 
-    const tdee = updates.tdee ?? merged.tdee ?? Math.round(profile.bmr * 1.2)
+    const tdee = updates.tdee ?? merged.tdee ?? getEffectiveTdee(profile)
     const derived: ProfileUpdateFields = { ...updates, bmr: merged.bmr, tdee }
     if (updates.target_calories !== undefined && updates.deficit_amount === undefined) {
       derived.deficit_amount = tdee - updates.target_calories

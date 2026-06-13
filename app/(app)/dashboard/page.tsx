@@ -6,7 +6,7 @@ import FoodCard from '@/components/FoodCard'
 import ActivityStrip from '@/components/ActivityStrip'
 import WeightSparkline from '@/components/WeightSparkline'
 import WaterTracker from '@/components/WaterTracker'
-import { getDailyBudget } from '@/lib/utils/calories'
+import { getBudgetBreakdown } from '@/lib/utils/calories'
 import { formatDisplayDate, todayString, offsetDate } from '@/lib/utils/format'
 import { haptic } from '@/lib/utils/haptic'
 import { useAnimatedNumber } from '@/lib/utils/useAnimatedNumber'
@@ -62,14 +62,11 @@ export default function DashboardPage() {
   const stepsCalories = activity?.steps_calories ?? 0
   const workoutCalories = activity?.workout_calories ?? 0
 
-  const budget = profile
-    ? getDailyBudget({
-        tdee: (profile.tdee || Math.round(profile.bmr * 1.2)),
-        deficitAmount: profile.deficit_amount,
-        stepsCalories,
-        workoutCalories,
-      })
-    : 0
+  const breakdown = profile
+    ? getBudgetBreakdown(profile, activity?.steps_count ?? 0, workoutCalories)
+    : null
+
+  const budget = breakdown?.total ?? 0
 
   const remaining = budget - totals.calories
   const over = remaining < 0
@@ -227,30 +224,30 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-            {showBudgetBreakdown && (
+            {showBudgetBreakdown && breakdown && (
               <div className="mt-3 bg-zinc-800/70 rounded-2xl p-3 text-xs space-y-1.5">
                 <div className="flex justify-between text-zinc-400">
                   <span>TDEE</span>
-                  <span className="text-white font-medium">{Math.round(profile.tdee || Math.round(profile.bmr * 1.2))} kcal</span>
+                  <span className="text-white font-medium">{Math.round(breakdown.effectiveTdee)} kcal</span>
                 </div>
                 <div className="flex justify-between text-zinc-400">
                   <span>Deficit</span>
-                  <span className="text-red-400 font-medium">− {Math.round(profile.deficit_amount)} kcal</span>
+                  <span className="text-red-400 font-medium">− {Math.round(breakdown.deficit)} kcal</span>
                 </div>
                 <div className="flex justify-between text-zinc-500 border-t border-zinc-700/60 pt-1.5">
                   <span>Base target</span>
-                  <span className="text-white font-medium">{Math.round((profile.tdee || Math.round(profile.bmr * 1.2)) - profile.deficit_amount)} kcal</span>
+                  <span className="text-white font-medium">{Math.round(breakdown.baseTarget)} kcal</span>
                 </div>
-                {stepsCalories > 0 && (
+                {breakdown.stepsBonus > 0 && (
                   <div className="flex justify-between text-zinc-400">
                     <span>Steps bonus</span>
-                    <span className="text-green-400 font-medium">+ {Math.round(stepsCalories)} kcal</span>
+                    <span className="text-green-400 font-medium">+ {Math.round(breakdown.stepsBonus)} kcal</span>
                   </div>
                 )}
-                {workoutCalories > 0 && (
+                {breakdown.workoutBonus > 0 && (
                   <div className="flex justify-between text-zinc-400">
                     <span>Workout bonus</span>
-                    <span className="text-green-400 font-medium">+ {Math.round(workoutCalories)} kcal</span>
+                    <span className="text-green-400 font-medium">+ {Math.round(breakdown.workoutBonus)} kcal</span>
                   </div>
                 )}
                 <div className="flex justify-between border-t border-zinc-700/60 pt-1.5 text-zinc-300 font-semibold">
@@ -280,10 +277,10 @@ export default function DashboardPage() {
         <CalorieRing
           eaten={totals.calories}
           budget={budget}
-          tdee={profile ? (profile.tdee || Math.round(profile.bmr * 1.2)) : 0}
-          deficitAmount={profile?.deficit_amount ?? 0}
-          stepsCalories={stepsCalories}
-          workoutCalories={workoutCalories}
+          tdee={breakdown?.effectiveTdee ?? 0}
+          deficitAmount={breakdown?.deficit ?? 0}
+          stepsCalories={breakdown?.stepsBonus ?? 0}
+          workoutCalories={breakdown?.workoutBonus ?? 0}
           size={230}
         />
 

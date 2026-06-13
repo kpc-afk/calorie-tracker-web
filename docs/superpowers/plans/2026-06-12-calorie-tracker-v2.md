@@ -903,8 +903,8 @@ export function foodPatterns(entries: PatternEntry[], overBudgetDates: Set<strin
 
 **Files:** Rewrite `app/api/weekly-summary/route.ts`
 
-- [ ] **Step 1:** Rebuild on v2 primitives: previous ISO week range via `weekStart`/`addDays`; per-day budgets from `getBudgetBreakdown` with that day's activity (fixes the zero-activity undercount); weight change from `ewmaTrend` delta over the week (not raw weigh-ins); prompt tone changed to match the persona — direct, numeric, no cheerleading ("You logged 6/7 days and averaged a 480 kcal deficit…"). Use the Task 5 wrapper with fallback. Cache the result in `insights` (`type: 'weekly_review'... ` — no: weekly-summary card and Coach weekly review are distinct; keep this route uncached but cheap, it's user-initiated from the dashboard card). Check where `WeeklySummaryCard` calls it and ensure it's on-demand (button/expander), not auto-fired on every dashboard load — if it auto-fires, gate it behind a tap.
-- [ ] **Step 2:** Verify in dev; `npm run build`; commit: `git commit -am "feat: weekly summary on v2 math + persona voice"`
+- [x] **Step 1:** Rebuild on v2 primitives: previous ISO week range via `weekStart`/`addDays`; per-day budgets from `getBudgetBreakdown` with that day's activity (fixes the zero-activity undercount); weight change from `ewmaTrend` delta over the week (not raw weigh-ins); prompt tone changed to match the persona — direct, numeric, no cheerleading ("You logged 6/7 days and averaged a 480 kcal deficit…"). Use the Task 5 wrapper with fallback. Cache the result in `insights` (`type: 'weekly_review'... ` — no: weekly-summary card and Coach weekly review are distinct; keep this route uncached but cheap, it's user-initiated from the dashboard card). Check where `WeeklySummaryCard` calls it and ensure it's on-demand (button/expander), not auto-fired on every dashboard load — if it auto-fires, gate it behind a tap.
+- [x] **Step 2:** Verify in dev; `npm run build`; commit: `git commit -am "feat: weekly summary on v2 math + persona voice"`
 
 ---
 

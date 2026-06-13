@@ -11,7 +11,7 @@ type SummaryData = {
     onBudgetDays: number
     daysLogged: number
     weightChange: number | null
-    budget: number
+    avgBudget: number
   }
   weekStart: string
 }

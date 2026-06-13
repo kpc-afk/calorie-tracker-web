@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProfile, getFoodEntriesInRange, getWeightHistory, getActivityRange } from '@/lib/db/queries'
 import { flashModelText } from '@/lib/ai/gemini'
+import { todayLondon, daysAgoLondon } from '@/lib/utils/dates'
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,8 +14,8 @@ export async function POST(req: NextRequest) {
       getActivityRange(14),
     ])
 
-    const today = new Date().toISOString().split('T')[0]
-    const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0]
+    const today = todayLondon()
+    const twoWeeksAgo = daysAgoLondon(14)
     const foodEntries = await getFoodEntriesInRange(twoWeeksAgo, today)
 
     // Summarize food entries by day

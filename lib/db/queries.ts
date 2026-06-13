@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import type { UserProfile, FoodEntry, WeightEntry, DailyActivity, SavedFood, MealTemplate, NutritionResult } from './types'
+import { todayLondon, daysAgoLondon, addDays } from '@/lib/utils/dates'
 
 // Profile
 export async function getProfile(): Promise<UserProfile | null> {
@@ -84,7 +85,7 @@ export async function upsertActivity(
 
 export async function getActivityRange(days: number): Promise<DailyActivity[]> {
   const supabase = await createClient()
-  const since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0]
+  const since = daysAgoLondon(days)
   const { data } = await supabase.from('daily_activity').select('*')
     .gte('date', since).order('date', { ascending: false })
   return data ?? []
@@ -93,7 +94,7 @@ export async function getActivityRange(days: number): Promise<DailyActivity[]> {
 // Weight entries
 export async function getWeightHistory(limitDays = 90): Promise<WeightEntry[]> {
   const supabase = await createClient()
-  const since = new Date(Date.now() - limitDays * 86400000).toISOString().split('T')[0]
+  const since = daysAgoLondon(limitDays)
   const { data } = await supabase.from('weight_entries').select('*')
     .gte('date', since).order('date', { ascending: true })
   return data ?? []
@@ -108,7 +109,7 @@ export async function insertWeightEntry(entry: Omit<WeightEntry, 'id' | 'user_id
 // Analytics
 export async function getDailyCalorieTotals(days: number): Promise<{ date: string; total: number }[]> {
   const supabase = await createClient()
-  const since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0]
+  const since = daysAgoLondon(days)
   const { data } = await supabase.from('food_entries').select('date, calories').gte('date', since)
   if (!data) return []
   const totals: Record<string, number> = {}
@@ -121,8 +122,8 @@ export async function getDailyCalorieTotals(days: number): Promise<{ date: strin
 export async function computeStreak(targetCalories: number, tdee: number, deficitAmount: number): Promise<number> {
   const supabase = await createClient()
   const days = 60
-  const since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0]
-  const todayStr = new Date().toISOString().split('T')[0]
+  const since = daysAgoLondon(days)
+  const todayStr = todayLondon()
 
   const [{ data: food }, { data: activity }] = await Promise.all([
     supabase.from('food_entries').select('date, calories').gte('date', since).lt('date', todayStr),
@@ -141,17 +142,15 @@ export async function computeStreak(targetCalories: number, tdee: number, defici
 
   const baseTarget = targetCalories || (tdee - deficitAmount)
   let streak = 0
-  const d = new Date()
-  d.setDate(d.getDate() - 1)
+  let dateStr = addDays(todayStr, -1)
 
   for (let i = 0; i < days; i++) {
-    const dateStr = d.toISOString().split('T')[0]
     const eaten = foodByDate[dateStr] ?? 0
     if (eaten === 0) break
     const budget = baseTarget + (activityByDate[dateStr] ?? 0)
     if (eaten > budget) break
     streak++
-    d.setDate(d.getDate() - 1)
+    dateStr = addDays(dateStr, -1)
   }
 
   return streak
@@ -159,7 +158,7 @@ export async function computeStreak(targetCalories: number, tdee: number, defici
 
 export async function getRecentWeights(days = 7): Promise<WeightEntry[]> {
   const supabase = await createClient()
-  const since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0]
+  const since = daysAgoLondon(days)
   const { data } = await supabase.from('weight_entries').select('*')
     .gte('date', since).order('date', { ascending: true })
   return data ?? []
@@ -203,7 +202,7 @@ export async function deleteMealTemplate(id: string) {
 }
 
 export async function get7DayMacroAverages() {
-  const since = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
+  const since = daysAgoLondon(7)
   const supabase = await createClient()
   const { data } = await supabase.from('food_entries')
     .select('date, calories, protein, carbs, fat').gte('date', since)

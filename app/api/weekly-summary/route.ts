@@ -4,21 +4,15 @@ import { getFoodEntriesInRange } from '@/lib/db/queries'
 import { getWeightHistory } from '@/lib/db/queries'
 import { flashModelText } from '@/lib/ai/gemini'
 import { getDailyBudget } from '@/lib/utils/calories'
+import { todayLondon, addDays, weekStart } from '@/lib/utils/dates'
 
 export async function GET() {
   try {
     const profile = await getProfile()
     if (!profile) return NextResponse.json({ error: 'No profile' }, { status: 400 })
 
-    const today = new Date()
-    const dayOfWeek = today.getDay() // 0=Sun
-    const monday = new Date(today)
-    monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1) - 7)
-    const sunday = new Date(monday)
-    sunday.setDate(monday.getDate() + 6)
-
-    const startDate = monday.toISOString().split('T')[0]
-    const endDate = sunday.toISOString().split('T')[0]
+    const startDate = addDays(weekStart(todayLondon()), -7) // previous week's Monday
+    const endDate = addDays(startDate, 6) // previous week's Sunday
 
     const [entries, weights] = await Promise.all([
       getFoodEntriesInRange(startDate, endDate),

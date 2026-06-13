@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getActivityForDate, upsertActivity } from '@/lib/db/queries'
+import { todayLondon } from '@/lib/utils/dates'
 
 export async function GET(req: NextRequest) {
-  const date = req.nextUrl.searchParams.get('date') ?? new Date().toISOString().split('T')[0]
+  const date = req.nextUrl.searchParams.get('date') ?? todayLondon()
   const activity = await getActivityForDate(date)
   return NextResponse.json(activity)
 }

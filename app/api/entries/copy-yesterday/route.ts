@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getFoodEntriesForDate, insertFoodEntry } from '@/lib/db/queries'
+import { addDays } from '@/lib/utils/dates'
 
 export async function POST(req: NextRequest) {
   try {
     const { targetDate } = await req.json()
     if (!targetDate) return NextResponse.json({ error: 'Missing targetDate' }, { status: 400 })
 
-    const yesterday = new Date(targetDate + 'T12:00:00')
-    yesterday.setDate(yesterday.getDate() - 1)
-    const yesterdayStr = yesterday.toISOString().split('T')[0]
+    const yesterdayStr = addDays(targetDate, -1)
 
     const [yesterdayEntries, todayEntries] = await Promise.all([
       getFoodEntriesForDate(yesterdayStr),

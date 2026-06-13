@@ -43,3 +43,6 @@ next-env.d.ts
 # playwright mcp artifacts
 .playwright-mcp/
 *.png
+
+# git worktrees
+/.worktrees

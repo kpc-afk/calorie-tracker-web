@@ -889,15 +889,15 @@ export function foodPatterns(entries: PatternEntry[], overBudgetDates: Set<strin
 
 **Files:** Rewrite `app/(app)/progress/page.tsx` (frontend-design skill); Modify `components/WeeklySummaryCard.tsx`, `components/SummaryStrip.tsx`
 
-- [ ] **Step 1:** Read the current page fully (430 lines — charts, table cards, CSV export). Preserve: CSV export, per-day history cards, existing chart data sources. Rebuild presentation in the language with this hierarchy:
+- [x] **Step 1:** Read the current page fully (430 lines — charts, table cards, CSV export). Preserve: CSV export, per-day history cards, existing chart data sources. Rebuild presentation in the language with this hierarchy:
   1. **Headline stats row**: `StatNumeral`s — REAL TDEE (from analytics; "—" + "needs more data" micro-label when `!reliable`), TREND WEIGHT (latest trend kg), GOAL ETA (date or "—").
   2. **Weight chart**: trend line in `--accent` (2px), raw weigh-ins as 3px `--ink-60` dots, goal line at 72 kg as a dashed hairline. Recharts, monochrome axes (`--muted`, 10px), no grid fills.
   3. **Compliance strip**: last 4 weeks, each a row — week label, days-logged dots, on-budget count, protein-floor hit count (`n/7` in `tnum`).
   4. **Calorie + macro charts**: keep existing data, restyle (accent line on ink axes; kill multi-color gradients).
   5. **Patterns section**: "MOST LOGGED" top-5 list (name · count · avg kcal), "BUDGET BLOWERS" list (name · over-rate as "3 of 4 days over"), "WEEKDAY VS WEEKEND" two `StatNumeral`s.
   6. Existing day-cards + CSV button restyled.
-- [ ] **Step 2:** Every analytics figure must render a "needs more data" state when inputs are sparse — no NaN, no empty charts (test by viewing with the seed account if data is thin).
-- [ ] **Step 3:** Browser-verify at 390×844. `npm run build`; commit: `git commit -am "feat: progress v2 — trend, TDEE, ETA, compliance, patterns"`
+- [x] **Step 2:** Every analytics figure must render a "needs more data" state when inputs are sparse — no NaN, no empty charts (test by viewing with the seed account if data is thin).
+- [x] **Step 3:** Browser-verify at 390×844. `npm run build`; commit: `git commit -am "feat: progress v2 — trend, TDEE, ETA, compliance, patterns"`
 
 ### Task 17: Weekly summary rebuilt
 

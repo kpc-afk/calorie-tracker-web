@@ -343,6 +343,13 @@ export default function ChatPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...profile, ...derived }),
     })
+    if (updates.weight_kg !== undefined) {
+      await fetch('/api/weight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: logDate, weight_kg: updates.weight_kg }),
+      })
+    }
     await loadContext()
     setMessages(prev => [...prev, { type: 'assistant', content: 'Done. Your profile has been updated.' }])
   }

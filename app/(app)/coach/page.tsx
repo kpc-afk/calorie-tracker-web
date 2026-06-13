@@ -4,12 +4,6 @@ import { haptic } from '@/lib/utils/haptic'
 
 type CoachMessage = { role: 'user' | 'assistant'; content: string }
 
-const NUDGE_KEY = () => {
-  const now = new Date()
-  const week = Math.floor(now.getTime() / (7 * 24 * 3600 * 1000))
-  return `coaching_nudge_w${week}`
-}
-
 const HISTORY_KEY = 'coach_history'
 
 const STARTERS = [
@@ -28,12 +22,8 @@ export default function CoachPage() {
   })
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [nudge, setNudge] = useState<string | null>(null)
-  const [nudgeLoading, setNudgeLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-
-  const isMonday = new Date().getDay() === 1
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -42,26 +32,6 @@ export default function CoachPage() {
   useEffect(() => {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(messages))
   }, [messages])
-
-  // Load cached nudge on mount
-  useEffect(() => {
-    const cached = localStorage.getItem(NUDGE_KEY())
-    if (cached) setNudge(cached)
-  }, [])
-
-  async function fetchNudge() {
-    setNudgeLoading(true)
-    try {
-      const res = await fetch('/api/coaching-nudge')
-      const data = await res.json()
-      if (data.insight) {
-        setNudge(data.insight)
-        localStorage.setItem(NUDGE_KEY(), data.insight)
-        haptic('medium')
-      }
-    } catch { /* ignore */ }
-    setNudgeLoading(false)
-  }
 
   async function sendMessage(text: string) {
     if (!text.trim() || loading) return
@@ -116,31 +86,6 @@ export default function CoachPage() {
           )}
         </div>
 
-        {/* Weekly insight */}
-        {(nudge || isMonday) && (
-          <div className="mt-3">
-            {nudge ? (
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl px-4 py-3">
-                <div className="flex items-start gap-2">
-                  <span className="text-blue-400 text-sm mt-0.5 shrink-0">✦</span>
-                  <p className="text-blue-300 text-xs leading-relaxed">{nudge}</p>
-                </div>
-              </div>
-            ) : isMonday ? (
-              <button
-                onClick={fetchNudge}
-                disabled={nudgeLoading}
-                className="w-full bg-blue-500/10 border border-blue-500/20 rounded-2xl px-4 py-3 text-left">
-                <div className="flex items-center gap-2">
-                  <span className="text-blue-400 text-sm">✦</span>
-                  <span className="text-blue-400 text-xs font-medium">
-                    {nudgeLoading ? 'Generating weekly insight…' : 'Get your weekly insight'}
-                  </span>
-                </div>
-              </button>
-            ) : null}
-          </div>
-        )}
       </div>
 
       {/* Messages */}

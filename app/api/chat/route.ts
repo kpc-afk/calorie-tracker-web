@@ -12,6 +12,8 @@ export async function POST(req: NextRequest) {
     const todayContext = JSON.parse(formData.get('todayContext') as string)
     const history = JSON.parse(formData.get('history') as string)
     const today = formData.get('today') as string
+    const sessionItemsRaw = formData.get('sessionItems') as string | null
+    const sessionItems = sessionItemsRaw ? JSON.parse(sessionItemsRaw) : []
 
     const imageFiles = formData.getAll('images') as File[]
     const imageBase64Array: string[] = []
@@ -41,7 +43,13 @@ export async function POST(req: NextRequest) {
       todayContext,
       history,
       today,
+      sessionItems,
     })
+
+    if ('aiError' in response) {
+      const status = response.aiError === 'rate_limit' ? 429 : response.aiError === 'overloaded' ? 503 : 502
+      return NextResponse.json({ error: response.aiError }, { status })
+    }
 
     return NextResponse.json(response)
   } catch (err: unknown) {

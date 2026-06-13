@@ -208,9 +208,12 @@ export default function ChatPage() {
       proteinEaten: totals.protein,
       carbsEaten: totals.carbs,
       fatEaten: totals.fat,
-      stepsCalories: activity?.steps_calories ?? 0,
+      stepsCount: activity?.steps_count ?? 0,
       workoutCalories: activity?.workout_calories ?? 0,
     }))
+    fd.append('sessionItems', JSON.stringify(
+      entries.slice(-10).map(e => ({ name: e.name, calories: e.calories, protein: e.protein, carbs: e.carbs, fat: e.fat }))
+    ))
     fd.append('history', JSON.stringify(chatHistory.slice(-10)))
     compressed.forEach(img => fd.append('images', img))
 
@@ -375,9 +378,12 @@ export default function ChatPage() {
       proteinEaten: totals.protein,
       carbsEaten: totals.carbs,
       fatEaten: totals.fat,
-      stepsCalories: activity?.steps_calories ?? 0,
+      stepsCount: activity?.steps_count ?? 0,
       workoutCalories: activity?.workout_calories ?? 0,
     }))
+    fd.append('sessionItems', JSON.stringify(
+      entries.slice(-10).map(e => ({ name: e.name, calories: e.calories, protein: e.protein, carbs: e.carbs, fat: e.fat }))
+    ))
     fd.append('history', JSON.stringify(historyForRetry.slice(-10)))
     compressedImages.forEach(img => fd.append('images', img))
 

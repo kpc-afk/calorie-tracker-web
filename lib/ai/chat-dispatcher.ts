@@ -1,34 +1,152 @@
-import { flashModel, parseJSON } from './gemini'
-import { ACTIVITY_LABELS, getEffectiveTdee } from '@/lib/utils/calories'
-import type { ChatResponse, UserProfile } from '@/lib/db/types'
+import { SchemaType } from '@google/generative-ai'
+import { makeModel, PRIMARY_MODEL, FALLBACK_MODEL } from './gemini'
+import { generateWithRetry, type AIErrorKind } from './client'
+import { getBudgetBreakdown, stepsToCalories, type BudgetBreakdown } from '@/lib/utils/calories'
+import type { ChatResponse, NutritionResult, ProfileUpdateFields, UserProfile } from '@/lib/db/types'
 
 type DailyContext = {
   caloriesEaten: number
   proteinEaten: number
   carbsEaten: number
   fatEaten: number
-  stepsCalories: number
+  stepsCount: number
   workoutCalories: number
 }
 
-const PERSONA = `PERSONA & BEHAVIOR:
-Act as a direct, honest, data-driven nutrition and fitness advisor. Do not sugar-coat advice or act as a cheerleader. Give straight facts and raw numbers. Correct strategy when the user is acting out of panic rather than logic. All measurements must strictly be in metric (kg, km, ml, °C) — never Fahrenheit or Imperial.
+type SessionItem = { name: string; calories: number; protein: number; carbs: number; fat: number }
 
-DAILY INTAKE TARGETS:
-- Rest days (desk/study/low steps): 1,400–1,500 kcal intake
-- Workout days (10k steps + intense Stairmaster/Cycling): 1,600–1,700 kcal intake
-- Protein floor: 130g every single day — strictly required to protect muscle mass. Always prioritise hitting this before worrying about the calorie ceiling.
+const foodItemSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    name: { type: SchemaType.STRING }, brand: { type: SchemaType.STRING },
+    serving_size: { type: SchemaType.STRING }, serving_unit: { type: SchemaType.STRING },
+    calories: { type: SchemaType.NUMBER }, protein: { type: SchemaType.NUMBER },
+    carbs: { type: SchemaType.NUMBER }, fat: { type: SchemaType.NUMBER },
+    fiber: { type: SchemaType.NUMBER }, sugar: { type: SchemaType.NUMBER },
+    sodium: { type: SchemaType.NUMBER }, saturated_fat: { type: SchemaType.NUMBER },
+    cholesterol: { type: SchemaType.NUMBER }, commentary: { type: SchemaType.STRING },
+  },
+  required: ['name', 'serving_size', 'serving_unit', 'calories', 'protein', 'carbs', 'fat', 'commentary'],
+}
 
-STRATEGY RULES:
-- Target deficit: 500–700 kcal/day from TDEE. Never encourage 1,000+ kcal deficits.
-- Weekly average over daily perfection. Minor daily overages are not emergencies.
-- No guilt workouts. If mentally exhausted, recommend sleep over late-night cardio. Workouts are for cardiovascular health and endurance, not to pay for food.
-- Muscle over scale weight. The goal is to arrive at 72kg lean, not depleted.
+export const chatResponseSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    intent: { type: SchemaType.STRING, format: 'enum', enum: ['food_log', 'workout', 'steps', 'question', 'profile_update_pending'] },
+    message: { type: SchemaType.STRING },
+    items: { type: SchemaType.ARRAY, items: foodItemSchema },
+    activeCalories: { type: SchemaType.NUMBER },
+    steps: { type: SchemaType.NUMBER },
+    updates: {
+      type: SchemaType.OBJECT,
+      properties: {
+        goal: { type: SchemaType.STRING }, deficit_amount: { type: SchemaType.NUMBER },
+        tdee: { type: SchemaType.NUMBER }, target_calories: { type: SchemaType.NUMBER },
+        weight_kg: { type: SchemaType.NUMBER }, activity_level: { type: SchemaType.STRING },
+        protein_target_g: { type: SchemaType.NUMBER }, carbs_target_g: { type: SchemaType.NUMBER },
+        fat_target_g: { type: SchemaType.NUMBER },
+      },
+    },
+  },
+  required: ['intent', 'message'],
+} as const
 
-LIFESTYLE CONTEXT:
-MBA student in London. Intense mental load (hackathons, studying). Active cyclist. Late-night workouts.
+type FlatFoodItem = {
+  name: string
+  brand?: string
+  serving_size: string
+  serving_unit: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber?: number
+  sugar?: number
+  sodium?: number
+  saturated_fat?: number
+  cholesterol?: number
+  commentary: string
+}
 
----`
+type FlatChatResponse = {
+  intent: 'food_log' | 'workout' | 'steps' | 'question' | 'profile_update_pending'
+  message: string
+  items?: FlatFoodItem[]
+  activeCalories?: number
+  steps?: number
+  updates?: Record<string, unknown>
+}
+
+function buildSystemPrompt(profile: UserProfile, b: BudgetBreakdown, todayContext: DailyContext, today: string, sessionItems: string) {
+  const remaining = b.total - todayContext.caloriesEaten
+  const proteinLeft = Math.max(0, profile.protein_target_g - todayContext.proteinEaten)
+  return `You are the AI engine of a personal calorie-tracking app for one user.
+
+PERSONA: Direct, honest, data-driven nutrition advisor. No sugar-coating, no cheerleading. Straight facts and numbers. Metric units only (kg, km, ml). Weekly average beats daily perfection; minor overages are not emergencies. No guilt workouts — if mentally exhausted, recommend sleep. Muscle over scale weight: protein floor comes before the calorie ceiling.
+
+USER STATE (today ${today}):
+- Base target: ${b.baseTarget} kcal (TDEE ${b.effectiveTdee} − deficit ${b.deficit})
+- Activity earn-back today: +${b.stepsBonus} kcal steps (above a ${b.baselineSteps}-step baseline, credited at ${Math.round(b.earnBackRate * 100)}%), +${b.workoutBonus} kcal workouts
+- Today's budget: ${b.total} kcal · eaten ${todayContext.caloriesEaten} · remaining ${remaining}
+- Protein: ${todayContext.proteinEaten}g of ${profile.protein_target_g}g floor (${proteinLeft}g to go). Carbs ${todayContext.carbsEaten}/${profile.carbs_target_g}g, Fat ${todayContext.fatEaten}/${profile.fat_target_g}g.
+- Weight ${profile.weight_kg} kg, goal ${profile.goal}.
+${sessionItems ? `\nITEMS LOGGED THIS SESSION (for corrections):\n${sessionItems}\n` : ''}
+TASK: Classify the user's input into exactly one intent and fill ONLY that intent's fields.
+
+- food_log — they describe or photograph food they ate. Fill "items".
+  ESTIMATION RULES:
+  * Assume UK/London portions and brands (Pret, Tesco meal deal, Nando's, pub servings) unless told otherwise.
+  * State your portion assumption in "commentary" (1–2 sentences) so the user can fact-check.
+  * Self-check before answering: protein×4 + carbs×4 + fat×9 must be within 10% of calories. Adjust until it is.
+  * If the user corrects a just-logged item ("it was a large"), return the corrected item(s), not a duplicate.
+- workout — they describe a workout or send an Apple Health screenshot. Fill "activeCalories" (read it off the screenshot if present).
+- steps — they report a step count. Fill "steps" with the integer ONLY. Do not compute calories; the server does that.
+- profile_update_pending — they want to change goal/weight/deficit/macros. Fill "updates" with ONLY the changing fields; keep deficit_amount and target_calories in sync (target = TDEE − deficit); state the proposed change in "message" ending with "Confirm?".
+- question — anything else. Answer in "message", concise and direct, citing their numbers above.
+
+EXAMPLES (static, illustrative numbers):
+User: "chicken wrap and a flat white"
+→ {"intent":"food_log","message":"Logged both.","items":[{"name":"Chicken wrap","serving_size":"1","serving_unit":"wrap","calories":420,"protein":28,"carbs":42,"fat":14,"fiber":3,"sugar":4,"sodium":680,"saturated_fat":4,"cholesterol":70,"commentary":"Assumed a standard UK grab-and-go wrap (~200g). Check: 28×4+42×4+14×9=406 ≈ 420."},{"name":"Flat white","serving_size":"1","serving_unit":"cup","calories":120,"protein":6,"carbs":9,"fat":7,"fiber":0,"sugar":9,"sodium":75,"saturated_fat":4.5,"cholesterol":25,"commentary":"Whole-milk flat white, ~240ml."}]}
+User: "actually the wrap was a large one"
+→ {"intent":"food_log","message":"Updated to a large wrap.","items":[{"name":"Chicken wrap (large)","serving_size":"1","serving_unit":"wrap","calories":560,"protein":36,"carbs":56,"fat":19,"fiber":4,"sugar":5,"sodium":900,"saturated_fat":5,"cholesterol":90,"commentary":"Scaled to a large (~270g) wrap. Check: 36×4+56×4+19×9=539 ≈ 560."}]}
+User: "12,400 steps today"
+→ {"intent":"steps","message":"Steps recorded.","steps":12400}`
+}
+
+function toChatResponse(flat: FlatChatResponse, profile: UserProfile): ChatResponse {
+  switch (flat.intent) {
+    case 'food_log': {
+      const items: NutritionResult[] = (flat.items ?? []).map(item => ({
+        name: item.name,
+        brand: item.brand,
+        serving_size: item.serving_size,
+        serving_unit: item.serving_unit,
+        calories: item.calories ?? 0,
+        protein: item.protein ?? 0,
+        carbs: item.carbs ?? 0,
+        fat: item.fat ?? 0,
+        fiber: item.fiber ?? 0,
+        sugar: item.sugar ?? 0,
+        sodium: item.sodium ?? 0,
+        saturated_fat: item.saturated_fat ?? 0,
+        cholesterol: item.cholesterol ?? 0,
+        commentary: item.commentary ?? '',
+      }))
+      return { intent: 'food_log', items, message: flat.message }
+    }
+    case 'workout':
+      return { intent: 'workout', activeCalories: flat.activeCalories ?? 0, message: flat.message }
+    case 'steps': {
+      const steps = Math.round(flat.steps ?? 0)
+      return { intent: 'steps', steps, stepsCalories: stepsToCalories(steps, profile.weight_kg), message: flat.message }
+    }
+    case 'profile_update_pending':
+      return { intent: 'profile_update_pending', updates: (flat.updates ?? {}) as ProfileUpdateFields, message: flat.message }
+    case 'question':
+    default:
+      return { intent: 'question', message: flat.message }
+  }
+}
 
 export async function dispatchChat(params: {
   message: string
@@ -38,64 +156,18 @@ export async function dispatchChat(params: {
   todayContext: DailyContext
   history: { role: 'user' | 'assistant'; content: string }[]
   today: string
-}): Promise<ChatResponse> {
-  const { message, imageBase64Array, imageMimeTypes, profile, todayContext } = params
+  sessionItems?: SessionItem[]
+}): Promise<ChatResponse | { aiError: AIErrorKind }> {
+  const { message, imageBase64Array, imageMimeTypes, profile, todayContext, today, sessionItems } = params
 
-  const tdee = getEffectiveTdee(profile)
-  const budget = tdee - profile.deficit_amount + todayContext.stepsCalories + todayContext.workoutCalories
-  const remaining = budget - todayContext.caloriesEaten
-  const activityLabel = profile.activity_level ? (ACTIVITY_LABELS[profile.activity_level] ?? profile.activity_level) : 'Sedentary'
+  const breakdown = getBudgetBreakdown(profile, todayContext.stepsCount, todayContext.workoutCalories)
 
-  const systemPrompt = `${PERSONA}
+  const sessionItemsText = (sessionItems ?? [])
+    .slice(-10)
+    .map(i => `- ${i.name}: ${Math.round(i.calories)} kcal (P${Math.round(i.protein)} C${Math.round(i.carbs)} F${Math.round(i.fat)})`)
+    .join('\n')
 
-You are a personal nutrition assistant embedded in a calorie tracking app.
-
-User profile:
-- Goal: ${profile.goal}
-- Activity level: ${activityLabel}
-- BMR: ${profile.bmr} kcal
-- TDEE (BMR × activity multiplier): ${tdee} kcal
-- Daily deficit from TDEE: ${profile.deficit_amount} kcal
-- Base daily target (TDEE − deficit): ${tdee - profile.deficit_amount} kcal
-- Today's budget (base + ${todayContext.stepsCalories} steps kcal + ${todayContext.workoutCalories} workout kcal): ${budget} kcal
-- Eaten so far: ${todayContext.caloriesEaten} kcal (P:${todayContext.proteinEaten}g C:${todayContext.carbsEaten}g F:${todayContext.fatEaten}g)
-- Remaining: ${remaining} kcal
-- Macro targets: Protein ${profile.protein_target_g}g, Carbs ${profile.carbs_target_g}g, Fat ${profile.fat_target_g}g
-- User weight: ${profile.weight_kg} kg (used for step calorie calculations)
-
-Detect intent and respond with JSON in EXACTLY one of these shapes:
-
-1. Food logging (text description of food, or image of food):
-{"intent":"food_log","items":[{"name":"...","brand":"","serving_size":"...","serving_unit":"...","calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0,"sugar":0,"sodium":0,"saturated_fat":0,"cholesterol":0,"commentary":"1-2 sentence plain English explanation of the estimate for fact-checking, e.g. standard portion size, typical calorie range, macros breakdown"}],"message":"brief acknowledgement"}
-
-2. Workout logging (text description of workout, or Apple Health/fitness screenshot):
-{"intent":"workout","activeCalories":0,"message":"brief confirmation with details"}
-
-3. Steps update (user says how many steps they did today):
-{"intent":"steps","steps":0,"stepsCalories":0,"message":"brief confirmation with kcal added to budget"}
-Note: stepsCalories = steps × 0.000571 × ${profile.weight_kg}
-
-4. General question (nutrition advice, progress query, anything else):
-{"intent":"question","message":"your answer as plain conversational text"}
-
-5. Profile update (user wants to change their goal, weight, activity level, deficit, or macro targets):
-{"intent":"profile_update_pending","updates":{"goal":"maintain","deficit_amount":0,"tdee":${tdee},"target_calories":${tdee}},"message":"I'll set your goal → Maintain, deficit → 0. New base budget: ${tdee} kcal/day. Confirm?"}
-
-Rules for profile_update_pending:
-- Only include fields in "updates" that are actually changing
-- ALWAYS include both deficit_amount AND target_calories together — they must stay in sync (target_calories = TDEE − deficit_amount)
-- When switching goal to "maintain": set deficit_amount to 0, target_calories to ${tdee}
-- When switching goal to "lose": suggest deficit_amount of 500–600 kcal, target_calories = ${tdee} minus that amount
-- When user reports a new weight: include weight_kg. BMR and TDEE do not auto-recalculate unless user explicitly asks.
-- When user changes activity level: include activity_level (one of: sedentary, lightly_active, moderately_active, very_active, extra_active) and update tdee accordingly
-- State proposed changes clearly in the message and end with "Confirm?"
-
-Important rules:
-- Always include commentary on food items explaining the estimate basis
-- For workout screenshots, read the active calories burned from the screen
-- For steps, calculate stepsCalories = steps × 0.000571 × ${profile.weight_kg}
-- Keep message fields brief and direct (no cheerleading)
-- If unclear whether something is food or a question, lean toward food_log`
+  const systemPrompt = buildSystemPrompt(profile, breakdown, todayContext, today, sessionItemsText)
 
   const historyText = params.history
     .slice(-8)
@@ -120,6 +192,23 @@ Important rules:
     })
   }
 
-  const result = await flashModel.generateContent(parts as Parameters<typeof flashModel.generateContent>[0])
-  return parseJSON<ChatResponse>(result.response.text())
+  const primary = makeModel(PRIMARY_MODEL, { json: true, schema: chatResponseSchema })
+  const fallback = makeModel(FALLBACK_MODEL, { json: true, schema: chatResponseSchema })
+  type GenerateContentArg = Parameters<typeof primary.generateContent>[0]
+
+  const result = await generateWithRetry([
+    () => primary.generateContent(parts as GenerateContentArg).then(r => ({ text: r.response.text() })),
+    () => fallback.generateContent(parts as GenerateContentArg).then(r => ({ text: r.response.text() })),
+  ], 'chat')
+
+  if (!result.ok) return { aiError: result.error }
+
+  let flat: FlatChatResponse
+  try {
+    flat = JSON.parse(result.text)
+  } catch {
+    return { aiError: 'parse' }
+  }
+
+  return toChatResponse(flat, profile)
 }

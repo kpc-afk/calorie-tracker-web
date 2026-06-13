@@ -48,18 +48,18 @@ export default function ChatMessage({ message, logDate, isHistory, onFoodAdded, 
 
   if (message.type === 'user') return (
     <div className="flex justify-end">
-      <div className="max-w-[80%] space-y-1">
+      <div className="max-w-[80%] space-y-1.5">
         {message.imageUrls && message.imageUrls.length > 0 && (
           <div className={`grid gap-1 ${message.imageUrls.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
             {message.imageUrls.map((url, i) => (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={url} alt="" className="rounded-xl object-cover w-full"
+              <img key={i} src={url} alt="" className="rounded-[var(--radius)] object-cover w-full border border-[var(--hairline)]"
                 style={{ maxHeight: 200, minHeight: 80 }} />
             ))}
           </div>
         )}
         {message.content && (
-          <div className="bg-green-500 text-black rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed">
+          <div className="text-[var(--ink-60)] text-[15px] leading-relaxed text-right">
             {message.content}
           </div>
         )}
@@ -68,42 +68,34 @@ export default function ChatMessage({ message, logDate, isHistory, onFoodAdded, 
   )
 
   if (message.type === 'assistant') return (
-    <div className="flex justify-start">
-      <div className="max-w-[85%] bg-zinc-800 text-gray-200 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap">
-        {message.content}
-      </div>
+    <div className="pl-3 border-l border-[var(--hairline)] text-[var(--ink)] text-[15px] leading-relaxed whitespace-pre-wrap">
+      {message.content}
     </div>
   )
 
   if (message.type === 'error') return (
-    <div className="flex justify-start">
-      <div className="max-w-[85%] bg-zinc-800 border border-zinc-700 rounded-2xl rounded-tl-sm px-4 py-3 text-sm space-y-2">
-        <div className="text-gray-300">{ERROR_COPY[message.kind]}</div>
-        {onRetry && (
-          <button onClick={() => { haptic('light'); onRetry() }}
-            className="bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
-            Tap to retry
-          </button>
-        )}
-      </div>
+    <div className="pl-3 border-l border-[var(--danger)] space-y-2">
+      <div className="text-[var(--ink-60)] text-[15px]">{ERROR_COPY[message.kind]}</div>
+      {onRetry && (
+        <button onClick={() => { haptic('light'); onRetry() }}
+          className="border border-[var(--hairline)] hover:border-[var(--hairline-strong)] text-[var(--ink)] text-sm font-medium px-4 py-2 rounded-[var(--radius)] transition-colors">
+          Tap to retry
+        </button>
+      )}
     </div>
   )
 
   const { response } = message as AIResponseMessage
 
   if (response.intent === 'question') return (
-    <div className="flex justify-start">
-      <div className="bg-zinc-800 text-gray-200 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%] text-sm leading-relaxed whitespace-pre-wrap">
-        {response.message}
-      </div>
+    <div className="pl-3 border-l border-[var(--hairline)] text-[var(--ink)] text-[15px] leading-relaxed whitespace-pre-wrap">
+      {response.message}
     </div>
   )
 
   if (response.intent === 'food_log') return (
-    <div className="space-y-2">
-      <div className="flex justify-start">
-        <div className="bg-zinc-800 text-gray-200 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm">{response.message}</div>
-      </div>
+    <div className="space-y-3">
+      <div className="pl-3 border-l border-[var(--hairline)] text-[var(--ink)] text-[15px] leading-relaxed">{response.message}</div>
       {localItems.map((item, i) => (
         <FoodItemCard key={i} item={item}
           onChange={updated => setLocalItems(prev => prev.map((it, idx) => idx === i ? updated : it))}
@@ -117,7 +109,7 @@ export default function ChatMessage({ message, logDate, isHistory, onFoodAdded, 
           if (notYet.length > 0) onFoodAdded(notYet, logDate)
           if (!isHistory) { setAllAdded(true); setAddedItems(new Set(localItems.map((_, i) => i))) }
         }}
-          className="w-full bg-green-500 text-black font-semibold py-3 rounded-xl text-sm">
+          className="w-full bg-[var(--accent)] text-[var(--accent-ink)] font-semibold py-3 rounded-[var(--radius)] text-sm">
           {isHistory ? `Add all ${localItems.length} to ${logDate}` : `Add all ${localItems.length} items`}
         </button>
       )}
@@ -128,7 +120,7 @@ export default function ChatMessage({ message, logDate, isHistory, onFoodAdded, 
               value={mealName}
               onChange={e => setMealName(e.target.value)}
               placeholder="Meal name (e.g. Chicken Bowl)"
-              className="flex-1 bg-zinc-800 text-white text-sm rounded-xl px-3 py-2 focus:outline-none border border-zinc-700 focus:border-zinc-500"
+              className="flex-1 bg-transparent text-[var(--ink)] text-sm rounded-[var(--radius)] px-3 py-2 focus:outline-none border border-[var(--hairline)] focus:border-[var(--hairline-strong)]"
               autoFocus
             />
             <button
@@ -144,19 +136,19 @@ export default function ChatMessage({ message, logDate, isHistory, onFoodAdded, 
                 onTemplateSaved?.()
               }}
               disabled={!mealName.trim()}
-              className="bg-zinc-700 text-white text-sm font-semibold px-3 py-2 rounded-xl disabled:opacity-40">
+              className="border border-[var(--hairline)] text-[var(--ink)] text-sm font-medium px-3 py-2 rounded-[var(--radius)] disabled:opacity-40">
               Save
             </button>
-            <button onClick={() => setShowSaveMeal(false)} className="text-zinc-500 hover:text-zinc-300 text-sm px-2">✕</button>
+            <button onClick={() => setShowSaveMeal(false)} className="text-[var(--ink-60)] hover:text-[var(--ink)] text-sm px-2 transition-colors">✕</button>
           </div>
         ) : (
           <button onClick={() => setShowSaveMeal(true)}
-            className="text-zinc-500 hover:text-zinc-300 text-xs font-medium transition-colors">
+            className="text-[var(--ink-60)] hover:text-[var(--ink)] text-xs font-medium transition-colors">
             + Save as meal template
           </button>
         )
       )}
-      {mealSaved && <div className="text-zinc-500 text-xs">✓ Saved as meal template</div>}
+      {mealSaved && <div className="text-[11px] tnum text-[var(--accent)]">✓ Saved as meal template</div>}
     </div>
   )
 
@@ -180,22 +172,20 @@ export default function ChatMessage({ message, logDate, isHistory, onFoodAdded, 
   )
 
   if (response.intent === 'profile_update_pending') return (
-    <div className="space-y-2">
-      <div className="flex justify-start">
-        <div className="bg-zinc-800 text-gray-200 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%] text-sm leading-relaxed whitespace-pre-wrap">
-          {response.message}
-        </div>
+    <div className="space-y-3">
+      <div className="pl-3 border-l border-[var(--hairline)] text-[var(--ink)] text-[15px] leading-relaxed whitespace-pre-wrap">
+        {response.message}
       </div>
       {!profileUpdated && (
         <div className="flex gap-2">
           <button
             onClick={() => { setProfileUpdated(true); onProfileUpdated(response.updates) }}
-            className="flex-1 bg-green-500 text-black font-semibold py-3 rounded-xl text-sm">
+            className="flex-1 bg-[var(--accent)] text-[var(--accent-ink)] font-semibold py-3 rounded-[var(--radius)] text-sm">
             Confirm
           </button>
           <button
             onClick={() => { setProfileUpdated(true); onProfileUpdateCancelled() }}
-            className="flex-1 bg-zinc-700 text-gray-200 font-semibold py-3 rounded-xl text-sm">
+            className="flex-1 border border-[var(--hairline)] text-[var(--ink)] font-semibold py-3 rounded-[var(--radius)] text-sm">
             Cancel
           </button>
         </div>

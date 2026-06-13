@@ -82,15 +82,15 @@ export default function ChatInput({ onSend, disabled, onBarcodeClick, onHistoryA
   }, [text])
 
   return (
-    <div className="border-t border-zinc-800 bg-zinc-900 p-3 safe-area-pb shrink-0 relative">
+    <div className="border-t border-[var(--hairline)] bg-[var(--bg)] p-3 safe-area-pb shrink-0 relative">
       {attachments.length > 0 && (
         <div className="flex gap-2 mb-2 overflow-x-auto pb-1">
           {attachments.map((a, i) => (
             <div key={a.preview} className="relative shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={a.preview} alt="" className="h-16 w-16 object-cover rounded-lg border border-zinc-700" />
+              <img src={a.preview} alt="" className="h-16 w-16 object-cover rounded-[var(--radius)] border border-[var(--hairline)]" />
               <button onClick={() => removeImage(i)}
-                className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center leading-none">
+                className="absolute -top-1.5 -right-1.5 bg-[var(--danger)] text-[var(--bg)] rounded-full w-5 h-5 text-xs flex items-center justify-center leading-none">
                 ×
               </button>
             </div>
@@ -106,14 +106,16 @@ export default function ChatInput({ onSend, disabled, onBarcodeClick, onHistoryA
       )}
       <div className="flex items-end gap-2">
         <button onClick={() => fileRef.current?.click()} disabled={disabled}
-          className="text-zinc-500 hover:text-zinc-300 transition-colors p-1 shrink-0 mb-1 text-xl leading-none disabled:opacity-40">
-          📎
+          className="text-[var(--ink-60)] hover:text-[var(--ink)] transition-colors p-1 shrink-0 mb-1 disabled:opacity-40">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+          </svg>
         </button>
         <input ref={fileRef} type="file" accept="image/*" multiple className="hidden"
           onChange={e => { if (e.target.files) { addFiles(e.target.files); e.target.value = '' } }} />
         {onBarcodeClick && (
           <button onClick={onBarcodeClick} disabled={disabled}
-            className="text-zinc-500 hover:text-zinc-300 transition-colors p-1 shrink-0 mb-1 disabled:opacity-40"
+            className="text-[var(--ink-60)] hover:text-[var(--ink)] transition-colors p-1 shrink-0 mb-1 disabled:opacity-40"
             title="Scan barcode">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 5v2M3 19v-2M5 3h2M19 3h-2M21 5v2M21 19v-2M19 21h-2M5 21h2"/>
@@ -133,15 +135,15 @@ export default function ChatInput({ onSend, disabled, onBarcodeClick, onHistoryA
           placeholder="Log food, workout, steps, or ask anything…"
           rows={1}
           disabled={disabled}
-          className="flex-1 bg-zinc-800 text-white placeholder-zinc-500 rounded-2xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-zinc-600 disabled:opacity-50"
+          className="flex-1 bg-transparent text-[var(--ink)] placeholder-[var(--muted)] border border-[var(--hairline)] rounded-[var(--radius)] px-4 py-2.5 text-sm resize-none focus:outline-none focus:border-[var(--hairline-strong)] disabled:opacity-50"
           style={{ minHeight: '42px', maxHeight: '128px' }}
         />
         <button onClick={handleSend} disabled={!canSend}
-          className="bg-green-500 text-black font-bold rounded-full w-9 h-9 flex items-center justify-center shrink-0 disabled:opacity-30 mb-0.5 transition-opacity text-lg leading-none">
+          className="bg-[var(--accent)] text-[var(--accent-ink)] font-semibold rounded-[var(--radius)] w-9 h-9 flex items-center justify-center shrink-0 disabled:opacity-30 mb-0.5 transition-opacity text-lg leading-none">
           ↑
         </button>
       </div>
-      <p className="text-center text-zinc-700 text-xs mt-1.5">⌘↵ send · paste or attach images</p>
+      <p className="text-center text-[var(--muted)] text-xs mt-1.5">⌘↵ send · paste or attach images</p>
     </div>
   )
 }

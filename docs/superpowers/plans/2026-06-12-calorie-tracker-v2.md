@@ -743,10 +743,10 @@ export function computeWeekBank(elapsedDays: DayLedger[], today: string, todayBu
 
 **Files:** Rewrite styling of `app/(app)/chat/page.tsx`, `components/ChatMessage.tsx`, `components/ChatInput.tsx`, `components/FoodItemCard.tsx`, `components/FavoritesStrip.tsx`, `components/MealTemplatesStrip.tsx`, `components/FoodHistoryStrip.tsx`, `components/FoodHistoryDropdown.tsx`, `components/WorkoutCard.tsx`, `components/StepsCard.tsx`, `components/BarcodeScanner.tsx` (use frontend-design skill; behavior unchanged)
 
-- [ ] **Step 1:** Read all files first. This task is a **restyle, not a rewrite** — every handler, state machine, and API call stays identical. Apply the language: assistant messages as plain ink text with a hairline left rule (no bubbles); user messages right-aligned in `--ink-60`; food item cards as `HairlineCard` with name + serving editable inline as before, kcal in `font-display`, confirm button accent fill; strips (favorites/templates/history) as hairline chips with micro-labels; thinking indicator + retry card from Task 7 restyled to match.
-- [ ] **Step 2:** Keep the staged-progress and retry features fully working. In the expanded/detail view of food cards (`components/FoodItemCard.tsx` and `components/FoodCard.tsx`), surface the stored-but-hidden fiber and sugar values as micro-label rows.
-- [ ] **Step 3:** Browser-verify the full loop at 390×844: log a meal → cards → edit serving → confirm → dashboard reflects it instantly (cache invalidation from Task 12 list: chat confirm must call `appCache.invalidatePrefix('/api/entries')` and `invalidatePrefix('/api/week')`).
-- [ ] **Step 4:** `npm run build`; commit: `git commit -am "feat: chat v2 — editorial restyle"`
+- [x] **Step 1:** Read all files first. This task is a **restyle, not a rewrite** — every handler, state machine, and API call stays identical. Apply the language: assistant messages as plain ink text with a hairline left rule (no bubbles); user messages right-aligned in `--ink-60`; food item cards as `HairlineCard` with name + serving editable inline as before, kcal in `font-display`, confirm button accent fill; strips (favorites/templates/history) as hairline chips with micro-labels; thinking indicator + retry card from Task 7 restyled to match.
+- [x] **Step 2:** Keep the staged-progress and retry features fully working. In the expanded/detail view of food cards (`components/FoodItemCard.tsx` and `components/FoodCard.tsx`), surface the stored-but-hidden fiber and sugar values as micro-label rows.
+- [x] **Step 3:** Browser-verify the full loop at 390×844: log a meal → cards → edit serving → confirm → dashboard reflects it instantly (cache invalidation from Task 12 list: chat confirm must call `appCache.invalidatePrefix('/api/entries')` and `invalidatePrefix('/api/week')`).
+- [x] **Step 4:** `npm run build`; commit: `git commit -am "feat: chat v2 — editorial restyle"`
 
 ---
 

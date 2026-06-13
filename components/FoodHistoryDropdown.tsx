@@ -2,6 +2,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { haptic } from '@/lib/utils/haptic'
 import { todayString } from '@/lib/utils/format'
+import { appCache } from '@/lib/utils/cache'
+import MicroLabel from './ui/MicroLabel'
 
 type HistoryItem = {
   name: string
@@ -64,29 +66,31 @@ export default function FoodHistoryDropdown({ query, onAdded, onDismiss }: Props
         source: 'history',
       }),
     })
+    appCache.invalidatePrefix('/api/entries')
+    appCache.invalidatePrefix('/api/week')
     onAdded?.()
     onDismiss?.()
   }
 
   return (
-    <div className="absolute bottom-full left-0 right-0 mb-1 bg-zinc-900 border border-zinc-700 rounded-2xl overflow-hidden shadow-xl z-20">
-      <div className="px-3 py-1.5 border-b border-zinc-800">
-        <span className="text-zinc-600 text-xs font-semibold uppercase tracking-wider">Quick add from history</span>
+    <div className="absolute bottom-full left-0 right-0 mb-1 bg-[var(--bg)] border border-[var(--hairline-strong)] rounded-[var(--radius)] overflow-hidden z-20">
+      <div className="px-3 py-1.5 border-b border-[var(--hairline)]">
+        <MicroLabel>Quick add from history</MicroLabel>
       </div>
       {items.map((item, i) => (
         <button
           key={item.name}
           onClick={() => handleAdd(item)}
-          className={`w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-zinc-800 transition-colors ${i < items.length - 1 ? 'border-b border-zinc-800' : ''}`}>
+          className={`w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-[var(--hairline)]/10 transition-colors ${i < items.length - 1 ? 'border-b border-[var(--hairline)]' : ''}`}>
           <div className="flex-1 min-w-0">
-            <div className="text-white text-sm truncate">{item.name}</div>
-            <div className="text-zinc-500 text-xs mt-0.5">
+            <div className="text-[var(--ink)] text-sm truncate">{item.name}</div>
+            <div className="text-[var(--ink-60)] text-xs mt-0.5 tnum">
               P{Math.round(item.protein)}g · C{Math.round(item.carbs)}g · F{Math.round(item.fat)}g
             </div>
           </div>
           <div className="shrink-0 ml-3 text-right">
-            <div className="text-green-400 font-semibold text-sm">{Math.round(item.calories)}</div>
-            <div className="text-zinc-600 text-xs">kcal</div>
+            <div className="font-display tnum text-[var(--ink)] text-sm">{Math.round(item.calories)}</div>
+            <div className="text-[var(--muted)] text-xs">kcal</div>
           </div>
         </button>
       ))}

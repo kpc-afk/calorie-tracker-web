@@ -8,6 +8,7 @@ type Props = { entry: FoodEntry; onDelete: (id: string) => void }
 export default function FoodCard({ entry, onDelete }: Props) {
   const [saved, setSaved] = useState(false)
   const [swipeX, setSwipeX] = useState(0)
+  const [expanded, setExpanded] = useState(false)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
   const isDragging = useRef(false)
@@ -62,6 +63,11 @@ export default function FoodCard({ entry, onDelete }: Props) {
     onDelete(entry.id)
   }
 
+  function handleCardClick() {
+    if (isDragging.current) { isDragging.current = false; return }
+    setExpanded(v => !v)
+  }
+
   return (
     <div className="relative overflow-hidden" style={{ animation: 'slideUp 0.18s ease-out' }}>
       {/* Delete zone behind */}
@@ -71,32 +77,40 @@ export default function FoodCard({ entry, onDelete }: Props) {
 
       {/* Card content */}
       <div
-        className="flex items-center justify-between bg-[var(--bg)] py-3 gap-3 relative hairline-t"
+        className="flex flex-col bg-[var(--bg)] py-3 gap-1 relative hairline-t cursor-pointer"
         style={{ transform: `translateX(${swipeX}px)`, transition: swipeX === 0 || swipeX === -80 ? 'transform 0.2s ease' : 'none' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onClick={handleCardClick}
       >
-        <div className="flex-1 min-w-0">
-          <div className="text-[var(--ink)] text-[14px] truncate">{entry.name}</div>
-          <div className="text-[11px] tnum text-[var(--ink-60)] mt-0.5">
-            {Math.round(entry.protein)}g P · {Math.round(entry.carbs)}g C · {Math.round(entry.fat)}g F
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="text-[var(--ink)] text-[14px] truncate">{entry.name}</div>
+            <div className="text-[11px] tnum text-[var(--ink-60)] mt-0.5">
+              {Math.round(entry.protein)}g P · {Math.round(entry.carbs)}g C · {Math.round(entry.fat)}g F
+            </div>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <button onClick={e => { e.stopPropagation(); handleSave() }} disabled={saved}
+              className={`text-base leading-none transition-colors ${saved ? 'text-[var(--accent)]' : 'text-[var(--muted)] hover:text-[var(--ink-60)]'}`}
+              title={saved ? 'Saved to favorites' : 'Save to favorites'}>
+              ★
+            </button>
+            <div className="font-display tnum text-[20px] leading-none text-[var(--ink)] text-right">
+              {Math.round(entry.calories)}<span className="text-[0.5em] text-[var(--muted)] ml-1">kcal</span>
+            </div>
+            <button onClick={e => { e.stopPropagation(); handleDelete() }}
+              className="text-[var(--muted)] hover:text-[var(--danger)] transition-colors text-xl leading-none w-5 flex items-center justify-center">
+              ×
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <button onClick={handleSave} disabled={saved}
-            className={`text-base leading-none transition-colors ${saved ? 'text-[var(--accent)]' : 'text-[var(--muted)] hover:text-[var(--ink-60)]'}`}
-            title={saved ? 'Saved to favorites' : 'Save to favorites'}>
-            ★
-          </button>
-          <div className="font-display tnum text-[20px] leading-none text-[var(--ink)] text-right">
-            {Math.round(entry.calories)}<span className="text-[0.5em] text-[var(--muted)] ml-1">kcal</span>
+        {expanded && (
+          <div className="micro-label">
+            {Math.round(entry.fiber)}g fiber · {Math.round(entry.sugar)}g sugar
           </div>
-          <button onClick={handleDelete}
-            className="text-[var(--muted)] hover:text-[var(--danger)] transition-colors text-xl leading-none w-5 flex items-center justify-center">
-            ×
-          </button>
-        </div>
+        )}
       </div>
     </div>
   )

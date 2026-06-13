@@ -3,11 +3,20 @@ import { useState } from 'react'
 import FoodItemCard from './FoodItemCard'
 import WorkoutCard from './WorkoutCard'
 import StepsCard from './StepsCard'
+import { haptic } from '@/lib/utils/haptic'
 import type { ChatResponse, NutritionResult, ProfileUpdateFields } from '@/lib/db/types'
 
-export type TextMessage = { type: 'user' | 'assistant'; content: string; imageUrls?: string[]; retryable?: boolean }
+export type TextMessage = { type: 'user' | 'assistant'; content: string; imageUrls?: string[] }
 export type AIResponseMessage = { type: 'ai_response'; response: ChatResponse; date: string }
-export type Message = TextMessage | AIResponseMessage
+export type ErrorKind = 'rate_limit' | 'overloaded' | 'other'
+export type ErrorMessage = { type: 'error'; kind: ErrorKind }
+export type Message = TextMessage | AIResponseMessage | ErrorMessage
+
+const ERROR_COPY: Record<ErrorKind, string> = {
+  rate_limit: 'Gemini free-tier limit hit — wait ~30s.',
+  overloaded: 'Gemini is busy right now.',
+  other: 'Something went wrong.',
+}
 
 type Props = {
   message: Message
@@ -60,14 +69,20 @@ export default function ChatMessage({ message, logDate, isHistory, onFoodAdded, 
 
   if (message.type === 'assistant') return (
     <div className="flex justify-start">
-      <div className="max-w-[85%] space-y-2">
-        <div className="bg-zinc-800 text-gray-200 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap">
-          {message.content}
-        </div>
-        {message.retryable && onRetry && (
-          <button onClick={onRetry}
+      <div className="max-w-[85%] bg-zinc-800 text-gray-200 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap">
+        {message.content}
+      </div>
+    </div>
+  )
+
+  if (message.type === 'error') return (
+    <div className="flex justify-start">
+      <div className="max-w-[85%] bg-zinc-800 border border-zinc-700 rounded-2xl rounded-tl-sm px-4 py-3 text-sm space-y-2">
+        <div className="text-gray-300">{ERROR_COPY[message.kind]}</div>
+        {onRetry && (
+          <button onClick={() => { haptic('light'); onRetry() }}
             className="bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
-            Retry
+            Tap to retry
           </button>
         )}
       </div>

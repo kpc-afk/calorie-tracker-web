@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import ChatInput from '@/components/ChatInput'
 import ChatMessage, { type Message } from '@/components/ChatMessage'
+import ThinkingIndicator from '@/components/ThinkingIndicator'
 import SummaryStrip from '@/components/SummaryStrip'
 import FavoritesStrip from '@/components/FavoritesStrip'
 import MealTemplatesStrip from '@/components/MealTemplatesStrip'
@@ -49,6 +50,7 @@ export default function ChatPage() {
     return [WELCOME]
   })
   const [loading, setLoading] = useState(false)
+  const [pendingHasImages, setPendingHasImages] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [scannerLoading, setScannerLoading] = useState(false)
   const [favRefreshKey, setFavRefreshKey] = useState(0)
@@ -196,6 +198,7 @@ export default function ChatPage() {
       imageUrls: images.length > 0 ? images.map(f => URL.createObjectURL(f)) : undefined,
     }])
     setLoading(true)
+    setPendingHasImages(images.length > 0)
 
     const compressed = await Promise.all(images.map(img => compressImage(img)))
     lastRequestRef.current = { message, compressedImages: compressed }
@@ -220,12 +223,12 @@ export default function ChatPage() {
     try {
       const res = await fetch('/api/chat', { method: 'POST', body: fd })
       if (res.status === 429) {
-        setMessages(prev => [...prev, { type: 'assistant', content: 'Rate limit hit — try again in about a minute. If it keeps failing, you may have hit the daily cap (500 requests) which resets at midnight.', retryable: true }])
+        setMessages(prev => [...prev, { type: 'error', kind: 'rate_limit' }])
         setLoading(false)
         return
       }
       if (res.status === 503) {
-        setMessages(prev => [...prev, { type: 'assistant', content: 'Gemini is experiencing high demand right now — wait a few seconds and try again.', retryable: true }])
+        setMessages(prev => [...prev, { type: 'error', kind: 'overloaded' }])
         setLoading(false)
         return
       }
@@ -235,7 +238,7 @@ export default function ChatPage() {
       lastRequestRef.current = null
       setMessages(prev => [...prev, { type: 'ai_response', response, date: logDate }])
     } catch {
-      setMessages(prev => [...prev, { type: 'assistant', content: 'Something went wrong. Please try again.' }])
+      setMessages(prev => [...prev, { type: 'error', kind: 'other' }])
     }
     setLoading(false)
   }
@@ -369,6 +372,7 @@ export default function ChatPage() {
 
     setMessages(prev => prev.slice(0, -1))
     setLoading(true)
+    setPendingHasImages(compressedImages.length > 0)
 
     const fd = new FormData()
     fd.append('message', message)
@@ -390,12 +394,12 @@ export default function ChatPage() {
     try {
       const res = await fetch('/api/chat', { method: 'POST', body: fd })
       if (res.status === 429) {
-        setMessages(prev => [...prev, { type: 'assistant', content: 'Still rate limited — wait a minute and try again.', retryable: true }])
+        setMessages(prev => [...prev, { type: 'error', kind: 'rate_limit' }])
         setLoading(false)
         return
       }
       if (res.status === 503) {
-        setMessages(prev => [...prev, { type: 'assistant', content: 'Gemini is experiencing high demand right now — wait a few seconds and try again.', retryable: true }])
+        setMessages(prev => [...prev, { type: 'error', kind: 'overloaded' }])
         setLoading(false)
         return
       }
@@ -405,7 +409,7 @@ export default function ChatPage() {
       lastRequestRef.current = null
       setMessages(prev => [...prev, { type: 'ai_response', response, date: logDate }])
     } catch {
-      setMessages(prev => [...prev, { type: 'assistant', content: 'Something went wrong. Please try again.' }])
+      setMessages(prev => [...prev, { type: 'error', kind: 'other' }])
     }
     setLoading(false)
   }
@@ -604,9 +608,7 @@ export default function ChatPage() {
           <div className="text-center text-zinc-500 text-sm pt-8">No results found</div>
         )}
         {!isSearching && loading && (
-          <div className="flex justify-start">
-            <div className="bg-zinc-800 text-gray-400 rounded-2xl rounded-tl-sm px-4 py-3 text-sm">Thinking…</div>
-          </div>
+          <ThinkingIndicator hasImages={pendingHasImages} />
         )}
         <div ref={bottomRef} />
       </div>

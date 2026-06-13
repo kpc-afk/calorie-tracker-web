@@ -599,7 +599,7 @@ export default function HairlineCard({ children, className = '' }: { children: R
 
 **Files:** Create `lib/utils/useCachedFetch.ts`, `lib/utils/cache.ts`, `lib/utils/cache.test.ts`
 
-- [ ] **Step 1:** Tests for the cache core (pure, no React) `lib/utils/cache.test.ts`:
+- [x] **Step 1:** Tests for the cache core (pure, no React) `lib/utils/cache.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -623,7 +623,7 @@ describe('SwrCache', () => {
 })
 ```
 
-- [ ] **Step 2:** Implement `lib/utils/cache.ts`:
+- [x] **Step 2:** Implement `lib/utils/cache.ts`:
 
 ```ts
 export class SwrCache {
@@ -637,7 +637,7 @@ export class SwrCache {
 export const appCache = new SwrCache()
 ```
 
-- [ ] **Step 3:** Implement `lib/utils/useCachedFetch.ts`:
+- [x] **Step 3:** Implement `lib/utils/useCachedFetch.ts`:
 
 ```ts
 'use client'
@@ -670,7 +670,7 @@ export function useCachedFetch<T>(url: string | null) {
 }
 ```
 
-- [ ] **Step 4:** `npm test` && `npm run build`; commit: `git commit -am "feat: SWR-style cache + hook"`
+- [x] **Step 4:** `npm test` && `npm run build`; commit: `git commit -am "feat: SWR-style cache + hook"`
 
 ### Task 12: Banking math + dashboard redesign
 

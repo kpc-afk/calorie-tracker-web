@@ -587,9 +587,9 @@ export default function HairlineCard({ children, className = '' }: { children: R
 
 **Files:** Modify `app/(app)/layout.tsx`, `app/(auth)/login/page.tsx`
 
-- [ ] **Step 1:** Redesign the tab bar: background `--bg` with a 1px `--hairline` top rule (drop the zinc blur pill look); active tab = `--accent` icon + label, inactive = `--muted`; active indicator = 1px accent rule at the very top of the bar above the active tab (not a pill). Keep existing SVG icons and safe-area padding. Labels in `micro-label` style.
-- [ ] **Step 2:** Login page: restyle to the language — app name set in `font-display` italic as a wordmark, bone-on-black, hairline input, accent submit button (`--accent` fill, `--accent-ink` text).
-- [ ] **Step 3:** Browser-verify both at 390×844. `npm run build`; commit: `git commit -am "feat: shell + login in Editorial Instrument language"`
+- [x] **Step 1:** Redesign the tab bar: background `--bg` with a 1px `--hairline` top rule (drop the zinc blur pill look); active tab = `--accent` icon + label, inactive = `--muted`; active indicator = 1px accent rule at the very top of the bar above the active tab (not a pill). Keep existing SVG icons and safe-area padding. Labels in `micro-label` style.
+- [x] **Step 2:** Login page: restyle to the language — app name set in `font-display` italic as a wordmark, bone-on-black, hairline input, accent submit button (`--accent` fill, `--accent-ink` text).
+- [x] **Step 3:** Browser-verify both at 390×844. `npm run build`; commit: `git commit -am "feat: shell + login in Editorial Instrument language"`
 
 ---
 

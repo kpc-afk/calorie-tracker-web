@@ -1,19 +1,29 @@
-type MacroProps = { label: string; value: number; target: number; color: string; accent: string }
+import MicroLabel from './ui/MicroLabel'
+import HairlineCard from './ui/HairlineCard'
 
-function MacroSegment({ label, value, target, color, accent }: MacroProps) {
-  const pct = target > 0 ? Math.min((value / target) * 100, 100) : 0
-  const over = value > target && target > 0
+type SegmentProps = { label: string; value: number; cap: number; isFloor?: boolean }
+
+function MacroSegment({ label, value, cap, isFloor }: SegmentProps) {
+  const pct = cap > 0 ? Math.min((value / cap) * 100, 100) : 0
+  const over = cap > 0 && value > cap
+  const remaining = Math.max(cap - value, 0)
+  const floorHit = isFloor && value >= cap && cap > 0
+  const fillColor = !isFloor && over ? 'var(--danger)' : 'var(--accent)'
+
   return (
     <div className="flex-1">
-      <div className="flex justify-between items-baseline mb-2">
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: accent }}>{label}</span>
-        <span className="text-xs text-zinc-500">/{Math.round(target)}g</span>
+      <MicroLabel className="mb-2">{label}</MicroLabel>
+      <div className="h-[2px] bg-[var(--hairline)] overflow-hidden">
+        <div className="h-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: fillColor }} />
       </div>
-      <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, backgroundColor: over ? '#ef4444' : color }} />
+      <div className="font-display tnum text-[26px] leading-none text-[var(--ink)] mt-2">
+        {Math.round(value)}<span className="text-[0.45em] text-[var(--muted)] ml-1">g</span>
       </div>
-      <div className="text-white font-bold text-lg mt-1.5 leading-none">{Math.round(value)}<span className="text-xs font-normal text-zinc-500 ml-0.5">g</span></div>
+      <div className={`mt-1 text-[11px] tnum ${floorHit ? 'text-[var(--accent)]' : over ? 'text-[var(--danger)]' : 'text-[var(--ink-60)]'}`}>
+        {isFloor
+          ? (floorHit ? '✓ floor hit' : `${Math.round(remaining)}g to go`)
+          : `/ ${Math.round(cap)}g`}
+      </div>
     </div>
   )
 }
@@ -22,42 +32,17 @@ type Props = {
   protein: number; proteinTarget: number
   carbs: number; carbsTarget: number
   fat: number; fatTarget: number
+  carbHeadroom?: number
 }
 
-export default function MacroBar({ protein, proteinTarget, carbs, carbsTarget, fat, fatTarget }: Props) {
-  const proteinPct = proteinTarget > 0 ? Math.min((protein / proteinTarget) * 100, 100) : 0
-  const proteinOver = protein > proteinTarget && proteinTarget > 0
-  const proteinRemaining = Math.max(proteinTarget - protein, 0)
-
+export default function MacroBar({ protein, proteinTarget, carbs, carbsTarget, fat, fatTarget, carbHeadroom }: Props) {
   return (
-    <div className="space-y-3">
-      {/* Protein — featured */}
-      <div className="bg-zinc-900 rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-green-500">Protein</span>
-            <span className="text-xs text-zinc-600">floor: {Math.round(proteinTarget)}g</span>
-          </div>
-          <span className="text-xs font-semibold" style={{ color: proteinOver ? '#22c55e' : proteinPct >= 80 ? '#22c55e' : '#71717a' }}>
-            {proteinOver ? '✓ hit' : `${Math.round(proteinRemaining)}g to go`}
-          </span>
-        </div>
-        <div className="h-3 bg-zinc-800 rounded-full overflow-hidden mb-2">
-          <div className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${proteinPct}%`, backgroundColor: proteinOver ? '#22c55e' : '#22c55e', opacity: proteinOver ? 1 : 0.85 }} />
-        </div>
-        <div className="flex justify-between items-baseline">
-          <span className="text-2xl font-bold text-white">{Math.round(protein)}<span className="text-sm font-normal text-zinc-500 ml-0.5">g</span></span>
-          <span className="text-xs text-zinc-600">{Math.round(proteinPct)}%</span>
-        </div>
+    <HairlineCard className="p-4">
+      <div className="grid grid-cols-3 gap-4">
+        <MacroSegment label="Protein" value={protein} cap={proteinTarget} isFloor />
+        <MacroSegment label="Carbs" value={carbs} cap={carbHeadroom ?? carbsTarget} />
+        <MacroSegment label="Fat" value={fat} cap={fatTarget} />
       </div>
-
-      {/* Carbs + Fat — compact */}
-      <div className="bg-zinc-900 rounded-2xl p-4 flex gap-6">
-        <MacroSegment label="Carbs" value={carbs} target={carbsTarget} color="#3b82f6" accent="#3b82f6" />
-        <div className="w-px bg-zinc-800" />
-        <MacroSegment label="Fat" value={fat} target={fatTarget} color="#f97316" accent="#f97316" />
-      </div>
-    </div>
+    </HairlineCard>
   )
 }

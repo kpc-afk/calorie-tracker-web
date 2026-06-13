@@ -274,15 +274,13 @@ export default function DashboardPage() {
       )}
 
       <div className="flex-1 px-4 py-4 space-y-3 pb-6">
-        <CalorieRing
-          eaten={totals.calories}
-          budget={budget}
-          tdee={breakdown?.effectiveTdee ?? 0}
-          deficitAmount={breakdown?.deficit ?? 0}
-          stepsCalories={breakdown?.stepsBonus ?? 0}
-          workoutCalories={breakdown?.workoutBonus ?? 0}
-          size={230}
-        />
+        {breakdown && (
+          <CalorieRing
+            eaten={totals.calories}
+            breakdown={breakdown}
+            size={230}
+          />
+        )}
 
         {profile && (
           <MacroBar

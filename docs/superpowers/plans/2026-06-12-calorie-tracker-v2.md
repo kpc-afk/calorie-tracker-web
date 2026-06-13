@@ -514,7 +514,7 @@ User: "12,400 steps today"
 
 The design language — **"Editorial Instrument"**: Vogue meets a Swiss instrument panel. Bone ivory on warm near-black, ONE accent (acid chartreuse), serif display numerals, hairline rules, sharp corners, generous whitespace. No gradients, no glows, no glassmorphism, no emoji in chrome (emoji in user content is fine).
 
-- [ ] **Step 1:** In `app/layout.tsx` load fonts:
+- [x] **Step 1:** In `app/layout.tsx` load fonts:
 
 ```tsx
 import { Instrument_Serif } from 'next/font/google'
@@ -522,7 +522,7 @@ const instrument = Instrument_Serif({ weight: '400', style: ['normal', 'italic']
 // add `${instrument.variable}` to the <body> className
 ```
 
-- [ ] **Step 2:** Replace the `:root` block in `app/globals.css`:
+- [x] **Step 2:** Replace the `:root` block in `app/globals.css`:
 
 ```css
 :root {
@@ -544,7 +544,7 @@ body { background: var(--bg); color: var(--ink); /* keep existing font stack + s
 .tnum { font-variant-numeric: tabular-nums; }
 ```
 
-- [ ] **Step 3:** Primitives (full code; keep them dumb):
+- [x] **Step 3:** Primitives (full code; keep them dumb):
 
 `components/ui/MicroLabel.tsx`
 ```tsx
@@ -577,11 +577,11 @@ export default function HairlineCard({ children, className = '' }: { children: R
 }
 ```
 
-- [ ] **Step 4:** Restyle `components/CalorieRing.tsx` and `components/MacroBar.tsx` to the language (full redesign of these two components now, since every later screen uses them):
+- [x] **Step 4:** Restyle `components/CalorieRing.tsx` and `components/MacroBar.tsx` to the language (full redesign of these two components now, since every later screen uses them):
   - **CalorieRing v2 props:** `{ eaten: number; breakdown: BudgetBreakdown }`. Thin 3px track in `--hairline-strong`, progress arc in `--accent` (flat butt caps, no rounding), `--danger` arc when over. Center: **remaining** as the hero (`StatNumeral` hero size, accent tone; when over: the overage with tone danger and label "OVER"), `eaten / total` as a small `tnum` line beneath. **No color change at 85%** — accent until genuinely over. Delete the in-component "How your budget is built" card entirely (breakdown moves to a tap-to-open sheet in Task 12).
   - **MacroBar v2:** protein is a floor — bar fills toward the floor, shows "Xg to go" then "✓ floor hit" (accent) when reached; carbs/fat are caps — thin bars, `--danger` fill only when over cap; all bars 2px tall hairline-track style. Accept an optional `carbHeadroom?: number` prop (computed in Task 12).
-- [ ] **Step 5:** Fix prop call sites so the build passes. `npm run build`. Verify dashboard in browser at 390×844 — new ring/macros render.
-- [ ] **Step 6:** Commit: `git commit -am "feat: Editorial Instrument design system — tokens, fonts, primitives, ring+macros v2"`
+- [x] **Step 5:** Fix prop call sites so the build passes. `npm run build`. Verify dashboard in browser at 390×844 — new ring/macros render.
+- [x] **Step 6:** Commit: `git commit -am "feat: Editorial Instrument design system — tokens, fonts, primitives, ring+macros v2"`
 
 ### Task 10: App shell + tab bar
 

@@ -875,15 +875,15 @@ export function foodPatterns(entries: PatternEntry[], overBudgetDates: Set<strin
 
 **Files:** Create `app/api/analytics/route.ts`
 
-- [ ] **Step 1:** GET route (node runtime fine). Load profile, last 60 days of entries (`getFoodEntriesInRange`), weights (`getWeightHistory(60)`), activity (`getActivityRange(60)`). Compute and return one JSON payload:
+- [x] **Step 1:** GET route (node runtime fine). Load profile, last 60 days of entries (`getFoodEntriesInRange`), weights (`getWeightHistory(60)`), activity (`getActivityRange(60)`). Compute and return one JSON payload:
   - `trend`: `ewmaTrend(weights)` plus the raw points
   - `tdee`: 21-day window — avg intake over days *with ≥1 entry*, trend delta from first/last trend value inside the window, `loggedDays`, `weighIns` → `backCalcTdee(...)`
   - `eta`: rate = (last trend − trend 14 days earlier) / 2 per week → `goalEta({ currentTrendKg, goalKg: GOAL_WEIGHT_KG, ratePerWeekKg, today: todayLondon() })` where `const GOAL_WEIGHT_KG = 72 // single-user app; profile has no goal-weight column` is declared at the top of the route
   - `compliance`: group last 28 days by `isoWeekKey` → per week `{ weekKey, daysLogged, onBudgetDays, proteinHitDays, avgIntake, avgBudget }` using per-day `getBudgetBreakdown` with that day's activity
   - `patterns`: `foodPatterns(entries, overBudgetDates)` where `overBudgetDates` = dates with eaten > that day's budget
   - `weekdayWeekend`: avg intake Mon–Fri vs Sat–Sun over the 60 days
-- [ ] **Step 2:** `curl localhost:3000/api/analytics` while `npm run dev` with a logged-in session is impractical — instead verify via the browser devtools network tab on the Progress page in Task 16, or temporarily `console.log` server-side. Build must pass.
-- [ ] **Step 3:** Commit: `git commit -am "feat: analytics API"`
+- [x] **Step 2:** `curl localhost:3000/api/analytics` while `npm run dev` with a logged-in session is impractical — instead verify via the browser devtools network tab on the Progress page in Task 16, or temporarily `console.log` server-side. Build must pass.
+- [x] **Step 3:** Commit: `git commit -am "feat: analytics API"`
 
 ### Task 16: Progress tab redesign
 

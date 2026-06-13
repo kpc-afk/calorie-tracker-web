@@ -1,4 +1,6 @@
 'use client'
+import HairlineCard from './ui/HairlineCard'
+import MicroLabel from './ui/MicroLabel'
 import { haptic } from '@/lib/utils/haptic'
 
 const CUP_ML = 250
@@ -39,35 +41,33 @@ export default function WaterTracker({ waterMl, date, onChange }: Props) {
   }
 
   return (
-    <div className="bg-zinc-900 rounded-2xl px-4 py-3">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm">💧</span>
-          <span className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Water</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-zinc-500 text-xs">{waterMl} / {DAILY_TARGET_ML} ml</span>
+    <HairlineCard className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <MicroLabel>Water</MicroLabel>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] tnum text-[var(--ink-60)]">{waterMl} / {DAILY_TARGET_ML} ml</span>
           <button onClick={removeCup} disabled={waterMl <= 0}
-            className="text-zinc-600 hover:text-zinc-400 w-6 h-6 flex items-center justify-center text-lg leading-none disabled:opacity-30">
+            className="text-[var(--muted)] hover:text-[var(--ink-60)] w-5 h-5 flex items-center justify-center text-base leading-none disabled:opacity-30 transition-colors">
             −
           </button>
           <button onClick={addCup} disabled={waterMl >= DAILY_TARGET_ML}
-            className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 font-bold px-2.5 py-1 rounded-full text-xs disabled:opacity-30 transition-colors">
-            + cup
+            className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--accent)] disabled:opacity-30 transition-opacity">
+            + Cup
           </button>
         </div>
       </div>
-      <div className="flex gap-1">
+      <div className="flex gap-1.5">
         {Array.from({ length: CUPS }).map((_, i) => (
           <div
             key={i}
-            className={`flex-1 h-2 rounded-full transition-colors ${i < cupsFilled ? 'bg-blue-500' : 'bg-zinc-800'}`}
+            className="flex-1 h-[3px] transition-colors"
+            style={{ backgroundColor: i < cupsFilled ? 'var(--accent)' : 'var(--hairline)' }}
           />
         ))}
       </div>
       {waterMl >= DAILY_TARGET_ML && (
-        <div className="text-blue-400 text-xs font-semibold mt-1.5 text-center">Daily target reached! 🎉</div>
+        <div className="text-[var(--accent)] text-[11px] font-medium mt-2 text-center">Daily target reached</div>
       )}
-    </div>
+    </HairlineCard>
   )
 }

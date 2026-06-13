@@ -676,7 +676,7 @@ export function useCachedFetch<T>(url: string | null) {
 
 **Files:** Create `lib/utils/banking.ts`, `lib/utils/banking.test.ts`, `app/api/week/route.ts`; Rewrite `app/(app)/dashboard/page.tsx` (use frontend-design skill); Modify `components/FoodCard.tsx`, `components/ActivityStrip.tsx`, `components/WaterTracker.tsx` (restyle pass)
 
-- [ ] **Step 1:** Banking tests `lib/utils/banking.test.ts`:
+- [x] **Step 1:** Banking tests `lib/utils/banking.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -697,7 +697,7 @@ describe('computeWeekBank', () => {
 })
 ```
 
-- [ ] **Step 2:** Implement `lib/utils/banking.ts`:
+- [x] **Step 2:** Implement `lib/utils/banking.ts`:
 
 ```ts
 import { weekStart } from './dates'
@@ -723,8 +723,8 @@ export function computeWeekBank(elapsedDays: DayLedger[], today: string, todayBu
 }
 ```
 
-- [ ] **Step 3:** `npm test` — PASS. Create `app/api/week/route.ts`: GET, takes `?date=`, loads this week's entries (`getFoodEntriesInRange(weekStart, date)`) + activities (`getActivityRange`) + profile, computes per-day `getBudgetBreakdown(...).total` and eaten sums, returns `{ days: DayLedger[], todayBudget }`. Pure data — banking math runs client-side via `computeWeekBank`.
-- [ ] **Step 4:** Rewrite the dashboard page with the **frontend-design skill**. Required structure top-to-bottom (all data via `useCachedFetch`; all mutations optimistic via `appCache.invalidatePrefix('/api/entries')` etc. then `refresh()`):
+- [x] **Step 3:** `npm test` — PASS. Create `app/api/week/route.ts`: GET, takes `?date=`, loads this week's entries (`getFoodEntriesInRange(weekStart, date)`) + activities (`getActivityRange`) + profile, computes per-day `getBudgetBreakdown(...).total` and eaten sums, returns `{ days: DayLedger[], todayBudget }`. Pure data — banking math runs client-side via `computeWeekBank`.
+- [x] **Step 4:** Rewrite the dashboard page with the **frontend-design skill**. Required structure top-to-bottom (all data via `useCachedFetch`; all mutations optimistic via `appCache.invalidatePrefix('/api/entries')` etc. then `refresh()`):
   1. **Header**: date as an editorial masthead (e.g. "Friday — 12 June" with `font-display` italic), prev/next day chevrons as bare hairline buttons, streak as a plain `micro-label` ("DAY 14"), weight sparkline kept but recolored.
   2. **Hero**: CalorieRing v2 (remaining is the hero) + beside/below it a `StatNumeral` for **protein to go** at equal visual rank (spec: protein-first). Tapping the ring opens the **budget breakdown sheet** — a bottom sheet/expanding panel rendering the full v2 chain from `BudgetBreakdown`: TDEE − deficit = base · steps line as "STEPS 10,240 · −5,000 baseline → +178 AT 75%" · workout line · total · eaten · remaining. This is the ONLY breakdown UI (the old header toggle + under-ring card are both gone).
   3. **Banking strip**: `HairlineCard` row — "WEEK" micro-label, bank value as `tnum` (+ accent / − danger), 7 hairline mini-bars (one per day, filled height ∝ eaten/budget, accent under, danger over), and "incl. bank: N kcal today" secondary line using `effectiveTodayAllowance`. Data: `/api/week` + `computeWeekBank`.
@@ -732,8 +732,8 @@ export function computeWeekBank(elapsedDays: DayLedger[], today: string, todayBu
   5. **ActivityStrip + WaterTracker** restyled (hairline, micro-labels, accent fills; keep all behavior).
   6. **Food log grouped by meal** from `created_at` hour (Europe/London): <11:00 Breakfast, 11:00–15:59 Lunch, 16:00–21:59 Dinner, else Snacks. Each group = `micro-label` header with group kcal `tnum`, entries as restyled `FoodCard`s (hairline rows, name in ink, kcal in `font-display` md). Keep swipe-delete, copy-yesterday, confetti (recolor to `['#C8FF1C', '#F2EFE6']`).
   7. **Manual add**: trim to name + calories + P/C/F (drop serving size/unit — API defaults them: send `serving_size: '1', serving_unit: 'serving'`).
-- [ ] **Step 5:** Verify in browser at 390×844: instant render from cache on tab revisit; optimistic delete; breakdown sheet math matches `calories.test.ts` expectations; meal groups correct. `npm run build`.
-- [ ] **Step 6:** Commit: `git commit -am "feat: dashboard v2 — editorial redesign, breakdown sheet, banking, meal groups"`
+- [x] **Step 5:** Verify in browser at 390×844: instant render from cache on tab revisit; optimistic delete; breakdown sheet math matches `calories.test.ts` expectations; meal groups correct. `npm run build`.
+- [x] **Step 6:** Commit: `git commit -am "feat: dashboard v2 — editorial redesign, breakdown sheet, banking, meal groups"`
 
 ---
 

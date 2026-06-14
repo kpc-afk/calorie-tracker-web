@@ -76,7 +76,6 @@ The first five vars above are required. `GEMINI_API_KEY` is server-side only (no
 app/
   (auth)/login/          Magic link login
   auth/callback/         Supabase OAuth callback
-  onboarding/            First-time setup + AI deficit recommendation
   (app)/
     layout.tsx           5-tab shell (Chat, Log, Progress, Coach, Settings)
     chat/                Primary tab — unified AI chat
@@ -86,7 +85,6 @@ app/
     settings/            Profile, macro targets, budget model, data, app info
   api/
     chat/                Unified AI dispatcher (all intents)
-    tdee/                BMR calculation + onboarding chat
     profile/             Get/save user profile
     entries/             Food entry CRUD + all-entries for export
     activity/            Daily steps + workout logging

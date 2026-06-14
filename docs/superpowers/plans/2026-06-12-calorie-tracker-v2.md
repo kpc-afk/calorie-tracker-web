@@ -1020,9 +1020,9 @@ Capacity errors before streaming starts → JSON `{error}` with 429/503 like cha
 
 **Files:** Redesign `app/(app)/settings/page.tsx` (frontend-design skill); Modify `app/api/profile/route.ts` if it whitelists fields
 
-- [ ] **Step 1:** Read both files. Add a "BUDGET MODEL" section: steppers/inputs for `baseline_steps` (0–10,000, step 500) and `earn_back_rate` (50–100%, step 5) with one-line explanations ("Steps below this are already in your TDEE", "Fraction of activity calories added back to your budget"). Ensure the profile API accepts the two new fields (add to its allowed fields if whitelisted, and to `ProfileUpdateFields` in `lib/db/types.ts`).
-- [ ] **Step 2:** Restyle the whole page to the language (hairline sections, micro-labels, accent primary actions). Keep all existing functionality (profile edit, macro targets editor, sign out, CSV export if present).
-- [ ] **Step 3:** Verify a knob change immediately alters the dashboard budget (cache invalidated on save: `appCache.invalidatePrefix('/api')`). `npm run build`; commit: `git commit -am "feat: settings v2 + budget model knobs"`
+- [x] **Step 1:** Read both files. Add a "BUDGET MODEL" section: steppers/inputs for `baseline_steps` (0–10,000, step 500) and `earn_back_rate` (50–100%, step 5) with one-line explanations ("Steps below this are already in your TDEE", "Fraction of activity calories added back to your budget"). Ensure the profile API accepts the two new fields (add to its allowed fields if whitelisted, and to `ProfileUpdateFields` in `lib/db/types.ts`).
+- [x] **Step 2:** Restyle the whole page to the language (hairline sections, micro-labels, accent primary actions). Keep all existing functionality (profile edit, macro targets editor, sign out, CSV export if present).
+- [x] **Step 3:** Verify a knob change immediately alters the dashboard budget (cache invalidated on save: `appCache.invalidatePrefix('/api')`). `npm run build`; commit: `git commit -am "feat: settings v2 + budget model knobs"`
 
 ---
 

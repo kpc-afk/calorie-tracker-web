@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import ChatInput from '@/components/ChatInput'
 import ChatMessage, { type Message } from '@/components/ChatMessage'
+import ThinkingIndicator from '@/components/ThinkingIndicator'
 import SummaryStrip from '@/components/SummaryStrip'
 import FavoritesStrip from '@/components/FavoritesStrip'
 import MealTemplatesStrip from '@/components/MealTemplatesStrip'
@@ -10,7 +11,9 @@ import WeeklySummaryCard from '@/components/WeeklySummaryCard'
 import BarcodeScanner from '@/components/BarcodeScanner'
 import { todayString, offsetDate, formatDisplayDate } from '@/lib/utils/format'
 import { incrementRequestCount } from '@/app/(app)/settings/page'
-import { getDailyBudget, calculateBMR, calculateTDEE } from '@/lib/utils/calories'
+import { getBudgetBreakdown, getEffectiveTdee, calculateBMR, calculateTDEE } from '@/lib/utils/calories'
+import { appCache } from '@/lib/utils/cache'
+import MicroLabel from '@/components/ui/MicroLabel'
 import type { NutritionResult, UserProfile, DailyActivity, FoodEntry, ProfileUpdateFields } from '@/lib/db/types'
 
 const WELCOME: Message = {
@@ -49,6 +52,7 @@ export default function ChatPage() {
     return [WELCOME]
   })
   const [loading, setLoading] = useState(false)
+  const [pendingHasImages, setPendingHasImages] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [scannerLoading, setScannerLoading] = useState(false)
   const [favRefreshKey, setFavRefreshKey] = useState(0)
@@ -156,12 +160,7 @@ export default function ChatPage() {
   )
 
   const budget = profile
-    ? getDailyBudget({
-        tdee: (profile.tdee || Math.round(profile.bmr * 1.2)),
-        deficitAmount: profile.deficit_amount,
-        stepsCalories: activity?.steps_calories ?? 0,
-        workoutCalories: activity?.workout_calories ?? 0,
-      })
+    ? getBudgetBreakdown(profile, activity?.steps_count ?? 0, activity?.workout_calories ?? 0).total
     : 0
 
   const chatHistory: { role: 'user' | 'assistant'; content: string }[] = []
@@ -201,6 +200,7 @@ export default function ChatPage() {
       imageUrls: images.length > 0 ? images.map(f => URL.createObjectURL(f)) : undefined,
     }])
     setLoading(true)
+    setPendingHasImages(images.length > 0)
 
     const compressed = await Promise.all(images.map(img => compressImage(img)))
     lastRequestRef.current = { message, compressedImages: compressed }
@@ -213,21 +213,24 @@ export default function ChatPage() {
       proteinEaten: totals.protein,
       carbsEaten: totals.carbs,
       fatEaten: totals.fat,
-      stepsCalories: activity?.steps_calories ?? 0,
+      stepsCount: activity?.steps_count ?? 0,
       workoutCalories: activity?.workout_calories ?? 0,
     }))
+    fd.append('sessionItems', JSON.stringify(
+      entries.slice(-10).map(e => ({ name: e.name, calories: e.calories, protein: e.protein, carbs: e.carbs, fat: e.fat }))
+    ))
     fd.append('history', JSON.stringify(chatHistory.slice(-10)))
     compressed.forEach(img => fd.append('images', img))
 
     try {
       const res = await fetch('/api/chat', { method: 'POST', body: fd })
       if (res.status === 429) {
-        setMessages(prev => [...prev, { type: 'assistant', content: 'Rate limit hit — try again in about a minute. If it keeps failing, you may have hit the daily cap (500 requests) which resets at midnight.', retryable: true }])
+        setMessages(prev => [...prev, { type: 'error', kind: 'rate_limit' }])
         setLoading(false)
         return
       }
       if (res.status === 503) {
-        setMessages(prev => [...prev, { type: 'assistant', content: 'Gemini is experiencing high demand right now — wait a few seconds and try again.', retryable: true }])
+        setMessages(prev => [...prev, { type: 'error', kind: 'overloaded' }])
         setLoading(false)
         return
       }
@@ -237,7 +240,7 @@ export default function ChatPage() {
       lastRequestRef.current = null
       setMessages(prev => [...prev, { type: 'ai_response', response, date: logDate }])
     } catch {
-      setMessages(prev => [...prev, { type: 'assistant', content: 'Something went wrong. Please try again.' }])
+      setMessages(prev => [...prev, { type: 'error', kind: 'other' }])
     }
     setLoading(false)
   }
@@ -245,7 +248,7 @@ export default function ChatPage() {
   async function handleBarcodeResult(barcode: string) {
     setShowScanner(false)
     setScannerLoading(true)
-    setMessages(prev => [...prev, { type: 'user', content: `📷 Scanned barcode: ${barcode}` }])
+    setMessages(prev => [...prev, { type: 'user', content: `Scanned barcode ${barcode}` }])
     try {
       const res = await fetch(`/api/barcode?code=${barcode}`)
       if (res.status === 404) {
@@ -288,6 +291,8 @@ export default function ChatPage() {
         }),
       })
     ))
+    appCache.invalidatePrefix('/api/entries')
+    appCache.invalidatePrefix('/api/week')
     loadContext()
   }
 
@@ -300,6 +305,8 @@ export default function ChatPage() {
         workout_calories: (activity?.workout_calories ?? 0) + kcal,
       }),
     })
+    appCache.invalidatePrefix('/api/activity')
+    appCache.invalidatePrefix('/api/week')
     loadContext()
   }
 
@@ -309,6 +316,8 @@ export default function ChatPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ date, steps_count: steps, steps_calories: stepsCalories }),
     })
+    appCache.invalidatePrefix('/api/activity')
+    appCache.invalidatePrefix('/api/week')
     loadContext()
   }
 
@@ -328,7 +337,7 @@ export default function ChatPage() {
       merged.tdee = calculateTDEE(merged.bmr, profile.activity_level ?? 'sedentary')
     }
 
-    const tdee = updates.tdee ?? merged.tdee ?? Math.round(profile.bmr * 1.2)
+    const tdee = updates.tdee ?? merged.tdee ?? getEffectiveTdee(profile)
     const derived: ProfileUpdateFields = { ...updates, bmr: merged.bmr, tdee }
     if (updates.target_calories !== undefined && updates.deficit_amount === undefined) {
       derived.deficit_amount = tdee - updates.target_calories
@@ -343,6 +352,13 @@ export default function ChatPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...profile, ...derived }),
     })
+    if (updates.weight_kg !== undefined) {
+      await fetch('/api/weight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: logDate, weight_kg: updates.weight_kg }),
+      })
+    }
     await loadContext()
     setMessages(prev => [...prev, { type: 'assistant', content: 'Done. Your profile has been updated.' }])
   }
@@ -364,6 +380,7 @@ export default function ChatPage() {
 
     setMessages(prev => prev.slice(0, -1))
     setLoading(true)
+    setPendingHasImages(compressedImages.length > 0)
 
     const fd = new FormData()
     fd.append('message', message)
@@ -373,21 +390,24 @@ export default function ChatPage() {
       proteinEaten: totals.protein,
       carbsEaten: totals.carbs,
       fatEaten: totals.fat,
-      stepsCalories: activity?.steps_calories ?? 0,
+      stepsCount: activity?.steps_count ?? 0,
       workoutCalories: activity?.workout_calories ?? 0,
     }))
+    fd.append('sessionItems', JSON.stringify(
+      entries.slice(-10).map(e => ({ name: e.name, calories: e.calories, protein: e.protein, carbs: e.carbs, fat: e.fat }))
+    ))
     fd.append('history', JSON.stringify(historyForRetry.slice(-10)))
     compressedImages.forEach(img => fd.append('images', img))
 
     try {
       const res = await fetch('/api/chat', { method: 'POST', body: fd })
       if (res.status === 429) {
-        setMessages(prev => [...prev, { type: 'assistant', content: 'Still rate limited — wait a minute and try again.', retryable: true }])
+        setMessages(prev => [...prev, { type: 'error', kind: 'rate_limit' }])
         setLoading(false)
         return
       }
       if (res.status === 503) {
-        setMessages(prev => [...prev, { type: 'assistant', content: 'Gemini is experiencing high demand right now — wait a few seconds and try again.', retryable: true }])
+        setMessages(prev => [...prev, { type: 'error', kind: 'overloaded' }])
         setLoading(false)
         return
       }
@@ -397,14 +417,14 @@ export default function ChatPage() {
       lastRequestRef.current = null
       setMessages(prev => [...prev, { type: 'ai_response', response, date: logDate }])
     } catch {
-      setMessages(prev => [...prev, { type: 'assistant', content: 'Something went wrong. Please try again.' }])
+      setMessages(prev => [...prev, { type: 'error', kind: 'other' }])
     }
     setLoading(false)
   }
 
   if (!profileChecked) return (
     <div className="flex flex-col h-full items-center justify-center">
-      <div className="text-gray-500 text-sm">Loading…</div>
+      <div className="text-[var(--ink-60)] text-sm">Loading…</div>
     </div>
   )
 
@@ -450,19 +470,19 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Date nav */}
-      <div className="shrink-0 bg-zinc-950 border-b border-zinc-800/60">
-        <div className="flex items-center justify-between px-4 py-2">
+      <div className="shrink-0 border-b border-[var(--hairline)] bg-[var(--bg)]">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5">
           <button onClick={() => changeDate(offsetDate(logDate, -1))}
-            className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-white bg-zinc-800 rounded-xl text-lg transition-colors">
+            className="w-8 h-8 flex items-center justify-center border border-[var(--hairline)] rounded-[var(--radius)] text-[var(--ink-60)] hover:text-[var(--ink)] hover:border-[var(--hairline-strong)] text-lg transition-colors shrink-0">
             ‹
           </button>
-          <div className="text-center">
-            <div className="text-white font-semibold text-sm">{formatDisplayDate(logDate)}</div>
-            {!isToday && <div className="text-zinc-500 text-xs">logging for past day</div>}
+          <div className="text-center flex-1 min-w-0">
+            <div className="font-display text-[var(--ink)] text-base leading-none truncate">{formatDisplayDate(logDate)}</div>
+            {!isToday && <MicroLabel className="mt-1">Logging for past day</MicroLabel>}
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button onClick={() => changeDate(offsetDate(logDate, 1))} disabled={isToday}
-              className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-white bg-zinc-800 rounded-xl text-lg transition-colors disabled:opacity-30">
+              className="w-8 h-8 flex items-center justify-center border border-[var(--hairline)] rounded-[var(--radius)] text-[var(--ink-60)] hover:text-[var(--ink)] hover:border-[var(--hairline-strong)] text-lg transition-colors disabled:opacity-30">
               ›
             </button>
             <button
@@ -472,29 +492,29 @@ export default function ChatPage() {
                 if (opening) setTimeout(() => searchRef.current?.focus(), 50)
                 else { setSearchQuery(''); setSearchFilter('all') }
               }}
-              className={`w-8 h-8 flex items-center justify-center rounded-xl text-base transition-colors ${searchOpen ? 'bg-green-500 text-black' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
+              className={`w-8 h-8 flex items-center justify-center rounded-[var(--radius)] text-base transition-colors ${searchOpen ? 'bg-[var(--accent)] text-[var(--accent-ink)]' : 'border border-[var(--hairline)] text-[var(--ink-60)] hover:text-[var(--ink)] hover:border-[var(--hairline-strong)]'}`}>
               ⌕
             </button>
           </div>
         </div>
         {searchOpen && (
           <div className="px-4 pb-3 space-y-2">
-            <div className="flex items-center gap-2 bg-zinc-800 rounded-xl px-3 py-2">
+            <div className="flex items-center gap-2 border border-[var(--hairline)] rounded-[var(--radius)] px-3 py-2">
               <input
                 ref={searchRef}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search meals, workouts…"
-                className="flex-1 bg-transparent text-white text-sm placeholder-zinc-500 focus:outline-none"
+                className="flex-1 bg-transparent text-[var(--ink)] text-sm placeholder-[var(--muted)] focus:outline-none"
               />
               {searchQuery
-                ? <button onClick={() => setSearchQuery('')} className="text-zinc-400 text-xs px-1">✕</button>
+                ? <button onClick={() => setSearchQuery('')} className="text-[var(--ink-60)] hover:text-[var(--ink)] text-xs px-1 transition-colors">✕</button>
                 : null}
             </div>
             <div className="flex gap-2">
               {(['all', 'food', 'workout', 'steps'] as const).map(f => (
                 <button key={f} onClick={() => setSearchFilter(f)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors capitalize ${searchFilter === f ? 'bg-green-500 text-black' : 'bg-zinc-800 text-zinc-400'}`}>
+                  className={`px-3 py-1 rounded-[var(--radius)] text-xs font-medium transition-colors capitalize ${searchFilter === f ? 'bg-[var(--accent)] text-[var(--accent-ink)]' : 'border border-[var(--hairline)] text-[var(--ink-60)]'}`}>
                   {f === 'all' ? 'All' : f === 'food' ? 'Food' : f === 'workout' ? 'Workout' : 'Steps'}
                 </button>
               ))}
@@ -508,7 +528,7 @@ export default function ChatPage() {
       {showScrollToBottom && (
         <button
           onClick={scrollToBottom}
-          className="absolute bottom-3 right-3 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-zinc-700 text-white shadow-lg hover:bg-zinc-600 transition-colors text-base">
+          className="absolute bottom-3 right-3 z-10 w-9 h-9 flex items-center justify-center rounded-full border border-[var(--hairline-strong)] bg-[var(--bg)] text-[var(--ink)] hover:border-[var(--accent)] transition-colors text-base">
           ↓
         </button>
       )}
@@ -524,7 +544,7 @@ export default function ChatPage() {
         {/* Pull-to-expand indicator */}
         {pullY > 0 && (
           <div className="flex justify-center pb-1" style={{ marginTop: pullY - 24 }}>
-            <div className={`text-xs px-3 py-1 rounded-full transition-colors ${pullY >= PULL_THRESHOLD ? 'bg-green-500 text-black' : 'bg-zinc-800 text-zinc-400'}`}>
+            <div className={`text-xs px-3 py-1 rounded-[var(--radius)] transition-colors ${pullY >= PULL_THRESHOLD ? 'bg-[var(--accent)] text-[var(--accent-ink)]' : 'border border-[var(--hairline)] text-[var(--ink-60)]'}`}>
               {pullY >= PULL_THRESHOLD ? 'Release to show history' : 'Pull to show history'}
             </div>
           </div>
@@ -551,7 +571,7 @@ export default function ChatPage() {
                   }
                 }}
                 title={historyExpanded ? 'Collapse history' : `Show ${hiddenCount} older messages`}
-                className="shrink-0 mt-1 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors text-xs">
+                className="shrink-0 mt-1 w-6 h-6 flex items-center justify-center rounded-[var(--radius)] border border-[var(--hairline)] text-[var(--ink-60)] hover:text-[var(--ink)] hover:border-[var(--hairline-strong)] transition-colors text-xs">
                 {historyExpanded ? '↓' : '↑'}
               </button>
             )}
@@ -575,7 +595,7 @@ export default function ChatPage() {
         {!isSearching && historyExpanded && historyEntries.length > 0 && (
           <button
             onClick={() => { setHistoryExpanded(false); scrollToBottom() }}
-            className="w-full py-2 text-xs text-zinc-500 hover:text-zinc-300 flex items-center justify-center gap-1.5 transition-colors">
+            className="w-full py-2 text-xs text-[var(--ink-60)] hover:text-[var(--ink)] flex items-center justify-center gap-1.5 transition-colors">
             ↑ Collapse history
           </button>
         )}
@@ -593,12 +613,10 @@ export default function ChatPage() {
             onTemplateSaved={() => setTemplateRefreshKey(k => k + 1)} />
         ))}
         {isSearching && allVisible.length === 0 && (
-          <div className="text-center text-zinc-500 text-sm pt-8">No results found</div>
+          <div className="text-center text-[var(--ink-60)] text-sm pt-8">No results found</div>
         )}
         {!isSearching && loading && (
-          <div className="flex justify-start">
-            <div className="bg-zinc-800 text-gray-400 rounded-2xl rounded-tl-sm px-4 py-3 text-sm">Thinking…</div>
-          </div>
+          <ThinkingIndicator hasImages={pendingHasImages} />
         )}
         <div ref={bottomRef} />
       </div>

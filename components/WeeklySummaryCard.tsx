@@ -1,5 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
+import HairlineCard from './ui/HairlineCard'
+import MicroLabel from './ui/MicroLabel'
 
 type SummaryData = {
   summary: string
@@ -9,7 +11,7 @@ type SummaryData = {
     onBudgetDays: number
     daysLogged: number
     weightChange: number | null
-    budget: number
+    avgBudget: number
   }
   weekStart: string
 }
@@ -55,42 +57,39 @@ export default function WeeklySummaryCard() {
   if (dismissed || (!data && !loading)) return null
 
   return (
-    <div className="mx-3 mt-2 mb-1 bg-gradient-to-br from-zinc-800 to-zinc-900 border border-zinc-700 rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-base">📊</span>
-          <span className="text-white font-bold text-sm">Weekly Recap</span>
-        </div>
-        <button onClick={() => setDismissed(true)} className="text-zinc-600 hover:text-zinc-400 text-lg leading-none">×</button>
+    <HairlineCard className="mx-3 mt-2 mb-1 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <MicroLabel>Weekly recap</MicroLabel>
+        <button onClick={() => setDismissed(true)} className="text-[var(--ink-60)] hover:text-[var(--ink)] text-lg leading-none transition-colors">×</button>
       </div>
 
       {loading ? (
-        <div className="text-zinc-500 text-xs">Generating your weekly summary…</div>
+        <div className="text-[var(--ink-60)] text-[13px]">Generating your weekly summary…</div>
       ) : data ? (
         <>
-          <p className="text-zinc-300 text-sm leading-relaxed mb-3">{data.summary}</p>
+          <p className="text-[var(--ink-60)] text-[13px] leading-relaxed mb-3">{data.summary}</p>
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-zinc-800/60 rounded-xl p-2 text-center">
-              <div className="text-white font-bold text-base">{data.stats.daysLogged}/7</div>
-              <div className="text-zinc-500 text-xs">days logged</div>
+            <div className="border border-[var(--hairline)] rounded-[var(--radius)] p-2 text-center">
+              <div className="font-display tnum text-[var(--ink)] text-base">{data.stats.daysLogged}/7</div>
+              <MicroLabel className="mt-1">Days logged</MicroLabel>
             </div>
-            <div className="bg-zinc-800/60 rounded-xl p-2 text-center">
-              <div className="text-white font-bold text-base">{data.stats.onBudgetDays}/7</div>
-              <div className="text-zinc-500 text-xs">on budget</div>
+            <div className="border border-[var(--hairline)] rounded-[var(--radius)] p-2 text-center">
+              <div className="font-display tnum text-[var(--ink)] text-base">{data.stats.onBudgetDays}/7</div>
+              <MicroLabel className="mt-1">On budget</MicroLabel>
             </div>
-            <div className="bg-zinc-800/60 rounded-xl p-2 text-center">
-              <div className="text-white font-bold text-base">{data.stats.proteinHitDays}/7</div>
-              <div className="text-zinc-500 text-xs">protein hit</div>
+            <div className="border border-[var(--hairline)] rounded-[var(--radius)] p-2 text-center">
+              <div className="font-display tnum text-[var(--ink)] text-base">{data.stats.proteinHitDays}/7</div>
+              <MicroLabel className="mt-1">Protein hit</MicroLabel>
             </div>
           </div>
           {data.stats.weightChange !== null && (
-            <div className={`mt-2 text-xs font-semibold text-center ${data.stats.weightChange < 0 ? 'text-green-400' : data.stats.weightChange > 0 ? 'text-red-400' : 'text-zinc-400'}`}>
+            <div className={`mt-3 text-[13px] tnum text-center ${data.stats.weightChange < 0 ? 'text-[var(--accent)]' : data.stats.weightChange > 0 ? 'text-[var(--danger)]' : 'text-[var(--ink-60)]'}`}>
               {data.stats.weightChange < 0 ? '↓' : data.stats.weightChange > 0 ? '↑' : '→'}{' '}
               {Math.abs(data.stats.weightChange).toFixed(1)} kg this week
             </div>
           )}
         </>
       ) : null}
-    </div>
+    </HairlineCard>
   )
 }

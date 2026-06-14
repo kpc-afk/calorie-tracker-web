@@ -18,6 +18,8 @@ export type UserProfile = {
   protein_target_g: number
   carbs_target_g: number
   fat_target_g: number
+  baseline_steps: number
+  earn_back_rate: number
   updated_at: string
 }
 
@@ -122,6 +124,15 @@ export type ProfileUpdateFields = {
   carbs_target_g?: number
   fat_target_g?: number
   target_calories?: number
+}
+
+export type Insight = {
+  id: string
+  user_id: string
+  type: 'weekly_review' | 'target_suggestion'
+  period_key: string
+  content: Record<string, unknown>
+  created_at: string
 }
 
 export type ChatResponse =

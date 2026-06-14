@@ -8,14 +8,10 @@ type Props = { entry: FoodEntry; onDelete: (id: string) => void }
 export default function FoodCard({ entry, onDelete }: Props) {
   const [saved, setSaved] = useState(false)
   const [swipeX, setSwipeX] = useState(0)
+  const [expanded, setExpanded] = useState(false)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
   const isDragging = useRef(false)
-
-  const proteinKcal = entry.protein * 4
-  const carbsKcal = entry.carbs * 4
-  const fatKcal = entry.fat * 9
-  const totalMacroKcal = proteinKcal + carbsKcal + fatKcal
 
   async function handleSave() {
     setSaved(true)
@@ -67,53 +63,54 @@ export default function FoodCard({ entry, onDelete }: Props) {
     onDelete(entry.id)
   }
 
+  function handleCardClick() {
+    if (isDragging.current) { isDragging.current = false; return }
+    setExpanded(v => !v)
+  }
+
   return (
-    <div className="relative overflow-hidden rounded-xl" style={{ animation: 'slideUp 0.18s ease-out' }}>
+    <div className="relative overflow-hidden" style={{ animation: 'slideUp 0.18s ease-out' }}>
       {/* Delete zone behind */}
-      <div className="absolute inset-y-0 right-0 w-20 bg-red-500 flex items-center justify-center rounded-r-xl">
-        <button onClick={handleDelete} className="text-white text-xs font-bold px-3 py-2">Delete</button>
+      <div className="absolute inset-y-0 right-0 w-20 bg-[var(--danger)] flex items-center justify-center">
+        <button onClick={handleDelete} className="text-[var(--bg)] text-[10px] font-semibold uppercase tracking-[0.08em] px-3">Delete</button>
       </div>
 
       {/* Card content */}
       <div
-        className="flex items-center justify-between bg-zinc-900 px-4 py-3 gap-3 relative"
+        className="flex flex-col bg-[var(--bg)] py-3 gap-1 relative hairline-t cursor-pointer"
         style={{ transform: `translateX(${swipeX}px)`, transition: swipeX === 0 || swipeX === -80 ? 'transform 0.2s ease' : 'none' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onClick={handleCardClick}
       >
-        <div className="flex-1 min-w-0">
-          <div className="text-white text-sm font-medium truncate">{entry.name}</div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-xs font-semibold text-emerald-400">{Math.round(entry.protein)}g P</span>
-            <span className="text-zinc-700 text-xs">·</span>
-            <span className="text-xs font-semibold text-blue-400">{Math.round(entry.carbs)}g C</span>
-            <span className="text-zinc-700 text-xs">·</span>
-            <span className="text-xs font-semibold text-orange-400">{Math.round(entry.fat)}g F</span>
-          </div>
-          {totalMacroKcal > 0 && (
-            <div className="mt-1.5 h-1 bg-zinc-800 rounded-full overflow-hidden flex">
-              <div style={{ width: `${(proteinKcal / totalMacroKcal) * 100}%`, backgroundColor: '#10b981' }} />
-              <div style={{ width: `${(carbsKcal / totalMacroKcal) * 100}%`, backgroundColor: '#3b82f6' }} />
-              <div style={{ width: `${(fatKcal / totalMacroKcal) * 100}%`, backgroundColor: '#f97316' }} />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="text-[var(--ink)] text-[14px] truncate">{entry.name}</div>
+            <div className="text-[11px] tnum text-[var(--ink-60)] mt-0.5">
+              {Math.round(entry.protein)}g P · {Math.round(entry.carbs)}g C · {Math.round(entry.fat)}g F
             </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button onClick={handleSave} disabled={saved}
-            className={`text-base leading-none transition-colors ${saved ? 'text-yellow-400' : 'text-zinc-700 hover:text-yellow-400'}`}
-            title={saved ? 'Saved to favorites' : 'Save to favorites'}>
-            ★
-          </button>
-          <div className="text-right ml-1">
-            <div className="text-green-400 font-bold text-sm">{Math.round(entry.calories)}</div>
-            <div className="text-zinc-600 text-xs">kcal</div>
           </div>
-          <button onClick={handleDelete}
-            className="text-zinc-700 hover:text-red-400 transition-colors text-xl leading-none w-6 flex items-center justify-center">
-            ×
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            <button onClick={e => { e.stopPropagation(); handleSave() }} disabled={saved}
+              className={`text-base leading-none transition-colors ${saved ? 'text-[var(--accent)]' : 'text-[var(--muted)] hover:text-[var(--ink-60)]'}`}
+              title={saved ? 'Saved to favorites' : 'Save to favorites'}>
+              ★
+            </button>
+            <div className="font-display tnum text-[20px] leading-none text-[var(--ink)] text-right">
+              {Math.round(entry.calories)}<span className="text-[0.5em] text-[var(--muted)] ml-1">kcal</span>
+            </div>
+            <button onClick={e => { e.stopPropagation(); handleDelete() }}
+              className="text-[var(--muted)] hover:text-[var(--danger)] transition-colors text-xl leading-none w-5 flex items-center justify-center">
+              ×
+            </button>
+          </div>
         </div>
+        {expanded && (
+          <div className="micro-label">
+            {Math.round(entry.fiber)}g fiber · {Math.round(entry.sugar)}g sugar
+          </div>
+        )}
       </div>
     </div>
   )

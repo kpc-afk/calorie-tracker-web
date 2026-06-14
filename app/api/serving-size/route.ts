@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { flashModel } from '@/lib/ai/gemini'
-import { parseJSON } from '@/lib/ai/gemini'
+import { SchemaType } from '@google/generative-ai'
+import { makeModel, PRIMARY_MODEL, FALLBACK_MODEL } from '@/lib/ai/gemini'
+import { generateWithRetry } from '@/lib/ai/client'
+
+export const runtime = 'edge'
+
+const servingSizeSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    servings: { type: SchemaType.NUMBER },
+    explanation: { type: SchemaType.STRING },
+  },
+  required: ['servings', 'explanation'],
+} as const
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,16 +25,27 @@ Labeled serving size: ${servingSize} ${servingUnit}
 
 User says: "${question}"
 
-Based on what the user described, calculate how many servings they ate. Be precise — use decimals if needed (e.g. 1.5, 0.75, 2.5).
+Based on what the user described, calculate how many servings they ate. Be precise — use decimals if needed (e.g. 1.5, 0.75, 2.5).`
 
-Return JSON only:
-{
-  "servings": <number>,
-  "explanation": "<one short sentence explaining your calculation>"
-}`
+    const primary = makeModel(PRIMARY_MODEL, { json: true, schema: servingSizeSchema })
+    const fallback = makeModel(FALLBACK_MODEL, { json: true, schema: servingSizeSchema })
 
-    const result = await flashModel.generateContent(prompt)
-    const parsed = parseJSON<{ servings: number; explanation: string }>(result.response.text())
+    const result = await generateWithRetry([
+      () => primary.generateContent(prompt).then(r => ({ text: r.response.text() })),
+      () => fallback.generateContent(prompt).then(r => ({ text: r.response.text() })),
+    ], 'serving-size')
+
+    if (!result.ok) {
+      const status = result.error === 'rate_limit' ? 429 : result.error === 'overloaded' ? 503 : 502
+      return NextResponse.json({ error: result.error }, { status })
+    }
+
+    let parsed: { servings: number; explanation: string }
+    try {
+      parsed = JSON.parse(result.text)
+    } catch {
+      return NextResponse.json({ error: 'parse' }, { status: 502 })
+    }
 
     if (!parsed.servings || parsed.servings <= 0) {
       return NextResponse.json({ error: 'Could not determine servings' }, { status: 400 })

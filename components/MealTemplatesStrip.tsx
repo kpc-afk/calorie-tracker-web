@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import type { MealTemplate, NutritionResult } from '@/lib/db/types'
 import { haptic } from '@/lib/utils/haptic'
 import { todayString } from '@/lib/utils/format'
+import { appCache } from '@/lib/utils/cache'
+import MicroLabel from './ui/MicroLabel'
 
 type Props = {
   refreshKey?: number
@@ -44,6 +46,8 @@ export default function MealTemplatesStrip({ refreshKey, onAdd }: Props) {
         }),
       })
     ))
+    appCache.invalidatePrefix('/api/entries')
+    appCache.invalidatePrefix('/api/week')
     onAdd(template.items, template.name)
     setTimeout(() => setAdding(null), 1200)
   }
@@ -56,27 +60,27 @@ export default function MealTemplatesStrip({ refreshKey, onAdd }: Props) {
 
   return (
     <div className="px-3 pb-2">
-      <div className="text-zinc-600 text-xs font-semibold uppercase tracking-wider mb-1.5 px-1">Meal Templates</div>
+      <MicroLabel className="mb-1.5 px-1">Meal templates</MicroLabel>
       <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
         {templates.map(t => (
           <button
             key={t.id}
             onClick={() => handleAdd(t)}
             disabled={adding === t.id}
-            className="shrink-0 bg-zinc-800/80 border border-zinc-700 rounded-xl px-3 py-2 text-left transition-colors hover:bg-zinc-700 active:bg-zinc-600 relative group"
+            className="shrink-0 border border-[var(--hairline)] rounded-[var(--radius)] px-3 py-2 text-left transition-colors hover:border-[var(--hairline-strong)] relative group"
             style={{ minWidth: 110, maxWidth: 150 }}
           >
-            <div className="text-white text-xs font-semibold truncate pr-4">{t.name}</div>
-            <div className="text-zinc-500 text-xs">{t.items.length} item{t.items.length !== 1 ? 's' : ''}</div>
-            <div className="text-green-400 text-xs font-bold">{Math.round(t.total_calories)} kcal</div>
+            <div className="text-[var(--ink)] text-xs font-medium truncate pr-4">{t.name}</div>
+            <div className="text-[var(--muted)] text-xs">{t.items.length} item{t.items.length !== 1 ? 's' : ''}</div>
+            <div className="text-[var(--ink-60)] text-xs tnum">{Math.round(t.total_calories)} kcal</div>
             {adding === t.id && (
-              <div className="absolute inset-0 flex items-center justify-center bg-zinc-800/90 rounded-xl">
-                <span className="text-green-400 text-xs font-bold">✓ Added</span>
+              <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg)]/90 rounded-[var(--radius)]">
+                <span className="text-[11px] tnum text-[var(--accent)]">✓ Added</span>
               </div>
             )}
             <button
               onClick={e => handleDelete(t.id, e)}
-              className="absolute top-1 right-1 text-zinc-600 hover:text-red-400 text-xs leading-none opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center"
+              className="absolute top-1 right-1 text-[var(--muted)] hover:text-[var(--danger)] text-xs leading-none opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center"
             >
               ×
             </button>

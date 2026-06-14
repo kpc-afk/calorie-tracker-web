@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getFoodEntriesForDate, insertFoodEntry } from '@/lib/db/queries'
+import { todayLondon } from '@/lib/utils/dates'
 
 export async function GET(req: NextRequest) {
-  const date = req.nextUrl.searchParams.get('date') ?? new Date().toISOString().split('T')[0]
+  const date = req.nextUrl.searchParams.get('date') ?? todayLondon()
   const entries = await getFoodEntriesForDate(date)
   return NextResponse.json(entries)
 }

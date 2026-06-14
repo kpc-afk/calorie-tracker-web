@@ -2,7 +2,11 @@
 import { useEffect, useState } from 'react'
 import type { UserProfile } from '@/lib/db/types'
 import { kgToLbs, cmToFtIn, todayString } from '@/lib/utils/format'
-import { ACTIVITY_LABELS } from '@/lib/utils/calories'
+import { getEffectiveTdee } from '@/lib/utils/calories'
+import { haptic } from '@/lib/utils/haptic'
+import { appCache } from '@/lib/utils/cache'
+import MicroLabel from '@/components/ui/MicroLabel'
+import HairlineCard from '@/components/ui/HairlineCard'
 
 const DAILY_LIMIT = 500
 const MINUTE_LIMIT = 10
@@ -19,43 +23,42 @@ export function incrementRequestCount() {
   localStorage.setItem(key, String(getTodayCount() + 1))
 }
 
-function ProfileIcon() {
+function Row({ label, value }: { label: string; value: string }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
+    <div className="flex items-center justify-between py-2 border-t border-[var(--hairline)] first:border-t-0 first:pt-0">
+      <span className="text-[13px] text-[var(--ink-60)]">{label}</span>
+      <span className="text-[13px] text-[var(--ink)] tnum">{value}</span>
+    </div>
   )
 }
 
-function TargetIcon() {
+function Stepper({ value, display, min, max, step, description, onChange }: {
+  value: number; display: string; min: number; max: number; step: number
+  description: string; onChange: (next: number) => void
+}) {
+  function adjust(delta: number) {
+    const next = Math.min(max, Math.max(min, value + delta))
+    if (next === value) return
+    haptic('light')
+    onChange(next)
+  }
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <circle cx="12" cy="12" r="6" />
-      <circle cx="12" cy="12" r="2" />
-    </svg>
-  )
-}
-
-function DatabaseIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <ellipse cx="12" cy="5" rx="9" ry="3" />
-      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-    </svg>
-  )
-}
-
-function AppIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-    </svg>
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="tnum text-[18px] text-[var(--ink)]">{display}</span>
+        <div className="flex items-center gap-2">
+          <button onClick={() => adjust(-step)} disabled={value <= min}
+            className="w-7 h-7 flex items-center justify-center border border-[var(--hairline)] rounded-[var(--radius)] text-[var(--ink-60)] hover:text-[var(--ink)] hover:border-[var(--hairline-strong)] disabled:opacity-30 transition-colors">
+            −
+          </button>
+          <button onClick={() => adjust(step)} disabled={value >= max}
+            className="w-7 h-7 flex items-center justify-center border border-[var(--hairline)] rounded-[var(--radius)] text-[var(--ink-60)] hover:text-[var(--ink)] hover:border-[var(--hairline-strong)] disabled:opacity-30 transition-colors">
+            +
+          </button>
+        </div>
+      </div>
+      <p className="text-[12px] text-[var(--muted)] leading-relaxed">{description}</p>
+    </div>
   )
 }
 
@@ -73,6 +76,7 @@ export default function SettingsPage() {
   const [targetsSaved, setTargetsSaved] = useState(false)
 
   function handleClearChat() {
+    haptic('light')
     localStorage.removeItem('chat_history')
     setChatCleared(true)
     setTimeout(() => setChatCleared(false), 2000)
@@ -90,6 +94,7 @@ export default function SettingsPage() {
 
   async function handleSaveTargets() {
     if (!profile) return
+    haptic('light')
     setSavingTargets(true)
     await fetch('/api/profile', {
       method: 'PATCH',
@@ -106,32 +111,38 @@ export default function SettingsPage() {
       carbs_target_g: Number(carbsTarget) || p.carbs_target_g,
       fat_target_g: Number(fatTarget) || p.fat_target_g,
     } : p)
+    appCache.invalidatePrefix('/api/profile')
     setSavingTargets(false)
     setTargetsSaved(true)
     setEditingTargets(false)
     setTimeout(() => setTargetsSaved(false), 2000)
   }
 
+  async function updateBudgetField(field: 'baseline_steps' | 'earn_back_rate', value: number) {
+    setProfile(p => p ? { ...p, [field]: value } : p)
+    await fetch('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value }),
+    })
+    appCache.invalidatePrefix('/api/profile')
+    appCache.invalidatePrefix('/api/analytics')
+    appCache.invalidatePrefix('/api/adaptive-target')
+  }
+
   if (!profile) return (
-    <div className="p-6 space-y-4">
-      {/* Skeleton avatar */}
-      <div className="bg-zinc-900 rounded-2xl p-5 flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-zinc-800 animate-pulse" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 bg-zinc-800 rounded animate-pulse w-1/2" />
-          <div className="h-3 bg-zinc-800 rounded animate-pulse w-1/3" />
-        </div>
-      </div>
-      {[1, 2, 3].map(i => (
-        <div key={i} className="bg-zinc-900 rounded-2xl p-4 space-y-3">
-          <div className="h-3 bg-zinc-800 rounded animate-pulse w-1/4" />
+    <div className="px-5 pt-6 pb-8 space-y-5">
+      <div className="font-display italic text-[26px] leading-none">Settings</div>
+      {[1, 2, 3, 4].map(i => (
+        <HairlineCard key={i} className="p-4 space-y-3">
+          <div className="h-2.5 w-20 bg-[var(--hairline)] rounded animate-pulse" />
           {[1, 2, 3].map(j => (
             <div key={j} className="flex justify-between">
-              <div className="h-3 bg-zinc-800 rounded animate-pulse w-1/3" />
-              <div className="h-3 bg-zinc-800 rounded animate-pulse w-1/4" />
+              <div className="h-3 w-24 bg-[var(--hairline)] rounded animate-pulse" />
+              <div className="h-3 w-12 bg-[var(--hairline)] rounded animate-pulse" />
             </div>
           ))}
-        </div>
+        </HairlineCard>
       ))}
     </div>
   )
@@ -145,181 +156,156 @@ export default function SettingsPage() {
   const weightDisplay = profile.weight_unit === 'lbs'
     ? `${kgToLbs(profile.weight_kg)} lbs`
     : `${profile.weight_kg} kg`
-  const tdee = (profile.tdee || Math.round(profile.bmr * 1.2))
-  const initial = (profile as UserProfile & { name?: string; email?: string }).email?.[0]?.toUpperCase() ?? '?'
+  const tdee = getEffectiveTdee(profile)
   const email = (profile as UserProfile & { email?: string }).email ?? ''
 
-  const goalBadgeColor = profile.goal === 'lose' ? 'bg-red-500/15 text-red-400'
-    : profile.goal === 'gain' ? 'bg-blue-500/15 text-blue-400'
-    : 'bg-green-500/15 text-green-400'
+  const requestPct = Math.min((requestCount / DAILY_LIMIT) * 100, 100)
 
   return (
-    <div className="p-4 pb-8 space-y-4">
-      {/* Avatar card */}
-      <div className="bg-zinc-900 rounded-2xl p-5 flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-green-500/20 border-2 border-green-500/30 flex items-center justify-center shrink-0">
-          <span className="text-green-400 font-bold text-2xl">{initial}</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-white font-semibold text-base truncate">{email}</div>
-          <div className="flex items-center gap-2 mt-1.5">
-            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${goalBadgeColor}`}>
-              {profile.goal} weight
-            </span>
-            <span className="text-zinc-600 text-xs">{ageYears}y · {weightDisplay}</span>
-          </div>
-        </div>
+    <div className="pb-8">
+      {/* Header */}
+      <div className="px-5 pt-6 pb-4">
+        <div className="font-display italic text-[26px] leading-none">Settings</div>
       </div>
 
-      {/* Profile stats */}
-      <div className="bg-zinc-900 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-green-500"><ProfileIcon /></span>
-          <h2 className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Profile</h2>
-        </div>
-        {([
-          ['Height', heightDisplay],
-          ['Activity', profile.activity_level ? (ACTIVITY_LABELS[profile.activity_level] ?? profile.activity_level) : 'Sedentary'],
-          ['BMR', `${Math.round(profile.bmr)} kcal`],
-          ['TDEE', `${Math.round(tdee)} kcal`],
-          ['Daily deficit', `${Math.round(profile.deficit_amount)} kcal`],
-          ['Base target', `${Math.round(profile.target_calories)} kcal`],
-        ] as [string, string][]).map(([label, value]) => (
-          <div key={label} className="flex justify-between items-center">
-            <span className="text-zinc-500 text-sm">{label}</span>
-            <span className="text-white text-sm font-medium capitalize">{value}</span>
+      <div className="px-5 space-y-5">
+        {/* Profile */}
+        <HairlineCard className="p-4 space-y-1">
+          <div className="flex items-center justify-between mb-2">
+            <MicroLabel>Profile</MicroLabel>
+            <span className="micro-label">{profile.goal} weight</span>
           </div>
-        ))}
-        <div className="pt-2 border-t border-zinc-800/80">
-          <p className="text-zinc-600 text-xs">Update weight/deficit via Chat — "update my weight to 80kg"</p>
-        </div>
-      </div>
+          <div className="text-[15px] text-[var(--ink)] truncate mb-2">{email}</div>
+          <Row label="Age" value={`${ageYears}y`} />
+          <Row label="Height" value={heightDisplay} />
+          <Row label="Weight" value={weightDisplay} />
+          <Row label="BMR" value={`${Math.round(profile.bmr)} kcal`} />
+          <Row label="TDEE" value={`${Math.round(tdee)} kcal`} />
+          <Row label="Daily deficit" value={`${Math.round(profile.deficit_amount)} kcal`} />
+          <Row label="Base target" value={`${Math.round(profile.target_calories)} kcal`} />
+          <p className="text-[12px] text-[var(--muted)] pt-2 border-t border-[var(--hairline)] mt-2">
+            Update weight or deficit via Chat — &ldquo;update my weight to 80kg&rdquo;
+          </p>
+        </HairlineCard>
 
-      {/* Macro targets */}
-      <div className="bg-zinc-900 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <span className="text-green-500"><TargetIcon /></span>
-            <h2 className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Targets</h2>
-          </div>
-          {!editingTargets && (
-            <button onClick={() => setEditingTargets(true)}
-              className="text-xs text-zinc-500 hover:text-white transition-colors">
-              Edit
-            </button>
-          )}
-        </div>
-
-        {editingTargets ? (
-          <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: 'Protein', value: proteinTarget, set: setProteinTarget, color: 'text-emerald-400' },
-                { label: 'Carbs', value: carbsTarget, set: setCarbsTarget, color: 'text-blue-400' },
-                { label: 'Fat', value: fatTarget, set: setFatTarget, color: 'text-orange-400' },
-              ].map(({ label, value, set, color }) => (
-                <div key={label}>
-                  <div className={`text-xs font-semibold mb-1 ${color}`}>{label}</div>
-                  <div className="relative">
-                    <input type="number" value={value} onChange={e => set(e.target.value)}
-                      className="w-full bg-zinc-800 text-white rounded-xl px-2 py-2 text-sm text-center focus:outline-none border border-zinc-700 focus:border-zinc-500 pr-5"
-                    />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">g</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setEditingTargets(false)}
-                className="flex-1 py-2 rounded-xl bg-zinc-800 text-zinc-400 text-sm">
-                Cancel
+        {/* Targets */}
+        <HairlineCard className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <MicroLabel>Macro targets</MicroLabel>
+            {!editingTargets && (
+              <button onClick={() => setEditingTargets(true)}
+                className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--accent)]">
+                Edit
               </button>
-              <button onClick={handleSaveTargets} disabled={savingTargets}
-                className="flex-1 py-2 rounded-xl bg-green-500 text-black text-sm font-bold disabled:opacity-40">
-                {savingTargets ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            {targetsSaved && (
-              <div className="text-green-400 text-xs font-medium">Saved</div>
             )}
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div>
-                <div className="text-emerald-400 font-bold text-lg">{Math.round(profile.protein_target_g)}g</div>
-                <div className="text-zinc-600 text-xs mt-0.5">Protein</div>
+          </div>
+
+          {editingTargets ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Protein', value: proteinTarget, set: setProteinTarget },
+                  { label: 'Carbs', value: carbsTarget, set: setCarbsTarget },
+                  { label: 'Fat', value: fatTarget, set: setFatTarget },
+                ].map(({ label, value, set }) => (
+                  <div key={label}>
+                    <input type="number" inputMode="decimal" value={value} onChange={e => set(e.target.value)}
+                      className="w-full bg-transparent border-b border-[var(--hairline)] pb-2 text-[15px] tnum text-[var(--ink)] text-center focus:outline-none focus:border-[var(--hairline-strong)]"
+                    />
+                    <div className="text-center text-[10px] text-[var(--muted)] mt-1 uppercase tracking-[0.08em]">{label} (g)</div>
+                  </div>
+                ))}
               </div>
-              <div>
-                <div className="text-blue-400 font-bold text-lg">{Math.round(profile.carbs_target_g)}g</div>
-                <div className="text-zinc-600 text-xs mt-0.5">Carbs</div>
-              </div>
-              <div>
-                <div className="text-orange-400 font-bold text-lg">{Math.round(profile.fat_target_g)}g</div>
-                <div className="text-zinc-600 text-xs mt-0.5">Fat</div>
+              <div className="flex gap-2">
+                <button onClick={() => setEditingTargets(false)}
+                  className="flex-1 py-2.5 border border-[var(--hairline)] rounded-[var(--radius)] text-[var(--ink-60)] text-[13px] font-medium">
+                  Cancel
+                </button>
+                <button onClick={handleSaveTargets} disabled={savingTargets}
+                  className="flex-1 py-2.5 bg-[var(--accent)] text-[var(--accent-ink)] rounded-[var(--radius)] text-[13px] font-semibold disabled:opacity-40">
+                  {savingTargets ? 'Saving…' : 'Save'}
+                </button>
               </div>
             </div>
-          </>
-        )}
-      </div>
+          ) : (
+            <>
+              {targetsSaved && <p className="text-[12px] text-[var(--accent)]">Saved</p>}
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <div className="font-display tnum text-[26px] leading-none text-[var(--ink)]">{Math.round(profile.protein_target_g)}</div>
+                  <div className="micro-label mt-1.5">Protein g</div>
+                </div>
+                <div>
+                  <div className="font-display tnum text-[26px] leading-none text-[var(--ink)]">{Math.round(profile.carbs_target_g)}</div>
+                  <div className="micro-label mt-1.5">Carbs g</div>
+                </div>
+                <div>
+                  <div className="font-display tnum text-[26px] leading-none text-[var(--ink)]">{Math.round(profile.fat_target_g)}</div>
+                  <div className="micro-label mt-1.5">Fat g</div>
+                </div>
+              </div>
+            </>
+          )}
+        </HairlineCard>
 
-      {/* Data */}
-      <div className="bg-zinc-900 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-green-500"><DatabaseIcon /></span>
-          <h2 className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Data</h2>
-        </div>
-        <div className="flex justify-between items-center">
-          <div>
-            <p className="text-white text-sm">Clear chat history</p>
-            <p className="text-zinc-600 text-xs mt-0.5">Removes messages from this device only</p>
-          </div>
-          <button onClick={handleClearChat}
-            className={`text-sm font-medium px-4 py-1.5 rounded-xl transition-colors ${chatCleared ? 'bg-zinc-700 text-green-400' : 'bg-zinc-800 text-red-400 hover:bg-zinc-700'}`}>
-            {chatCleared ? 'Cleared' : 'Clear'}
-          </button>
-        </div>
-      </div>
+        {/* Budget model */}
+        <HairlineCard className="p-4 space-y-4">
+          <MicroLabel>Budget model</MicroLabel>
+          <Stepper
+            value={profile.baseline_steps}
+            display={`${profile.baseline_steps.toLocaleString()} steps`}
+            min={0} max={10000} step={500}
+            description="Steps below this are already in your TDEE — only steps above it add to your budget."
+            onChange={v => updateBudgetField('baseline_steps', v)}
+          />
+          <div className="hairline-t" />
+          <Stepper
+            value={Math.round(profile.earn_back_rate * 100)}
+            display={`${Math.round(profile.earn_back_rate * 100)}%`}
+            min={50} max={100} step={5}
+            description="Fraction of activity calories (steps + workouts) added back to your budget."
+            onChange={v => updateBudgetField('earn_back_rate', v / 100)}
+          />
+        </HairlineCard>
 
-      {/* App info */}
-      <div className="bg-zinc-900 rounded-2xl p-4 space-y-2.5">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-green-500"><AppIcon /></span>
-          <h2 className="text-zinc-400 text-xs font-bold uppercase tracking-wider">App</h2>
-        </div>
-        {([
-          ['AI model', 'Gemini Flash'],
-          ['Storage', 'Supabase (cloud)'],
-          ['Version', '1.0'],
-        ] as [string, string][]).map(([label, value]) => (
-          <div key={label} className="flex justify-between">
-            <span className="text-zinc-500 text-sm">{label}</span>
-            <span className="text-white text-sm">{value}</span>
-          </div>
-        ))}
-        <div className="pt-2 border-t border-zinc-800 space-y-2.5">
-          <div>
-            <div className="flex justify-between items-center mb-1.5">
-              <span className="text-zinc-500 text-sm">Requests today</span>
-              <span className="text-white text-sm font-medium">{requestCount} / {DAILY_LIMIT}</span>
+        {/* Data */}
+        <HairlineCard className="p-4 space-y-3">
+          <MicroLabel>Data</MicroLabel>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[13px] text-[var(--ink)]">Clear chat history</p>
+              <p className="text-[12px] text-[var(--muted)] mt-0.5">Removes messages from this device only</p>
             </div>
-            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+            <button onClick={handleClearChat}
+              className={`text-[10px] font-semibold uppercase tracking-[0.08em] px-3 py-1.5 border rounded-[var(--radius)] transition-colors ${
+                chatCleared ? 'border-[var(--hairline)] text-[var(--accent)]' : 'border-[var(--hairline)] text-[var(--danger)] hover:border-[var(--hairline-strong)]'
+              }`}>
+              {chatCleared ? 'Cleared' : 'Clear'}
+            </button>
+          </div>
+        </HairlineCard>
+
+        {/* App */}
+        <HairlineCard className="p-4 space-y-3">
+          <MicroLabel>App</MicroLabel>
+          <Row label="AI model" value="Gemini Flash" />
+          <Row label="Storage" value="Supabase" />
+          <Row label="Version" value="2.0" />
+          <div className="pt-2 border-t border-[var(--hairline)] space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-[13px] text-[var(--ink-60)]">Requests today</span>
+              <span className="text-[13px] text-[var(--ink)] tnum">{requestCount} / {DAILY_LIMIT}</span>
+            </div>
+            <div className="h-1 bg-[var(--hairline)] rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${Math.min((requestCount / DAILY_LIMIT) * 100, 100)}%`,
-                  backgroundColor: requestCount > DAILY_LIMIT * 0.85 ? '#ef4444' : requestCount > DAILY_LIMIT * 0.6 ? '#f97316' : '#22c55e'
-                }} />
+                style={{ width: `${requestPct}%`, backgroundColor: requestPct > 85 ? 'var(--danger)' : 'var(--accent)' }} />
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[12px] text-[var(--muted)]">Rate limit</span>
+              <span className="text-[12px] text-[var(--ink-60)] tnum">{MINUTE_LIMIT} / min</span>
             </div>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-zinc-600 text-xs">Rate limit</span>
-            <span className="text-zinc-400 text-xs">{MINUTE_LIMIT} requests / min</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-zinc-600 text-xs">Daily cap</span>
-            <span className="text-zinc-400 text-xs">{DAILY_LIMIT} requests / day</span>
-          </div>
-        </div>
+        </HairlineCard>
       </div>
     </div>
   )

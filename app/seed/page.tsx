@@ -16,6 +16,8 @@ export default async function SeedPage() {
     protein_target_g: 130,
     carbs_target_g: 120,
     fat_target_g: 50,
+    baseline_steps: 5000,
+    earn_back_rate: 0.75,
   })
   redirect('/chat')
 }

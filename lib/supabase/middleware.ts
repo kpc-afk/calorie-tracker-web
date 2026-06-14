@@ -18,7 +18,7 @@ export async function updateSession(request: NextRequest) {
     }
   )
   const { data: { user } } = await supabase.auth.getUser()
-  const isPublic = ['/login', '/auth'].some(p => request.nextUrl.pathname.startsWith(p))
+  const isPublic = ['/login', '/auth', '/api/health-sync'].some(p => request.nextUrl.pathname.startsWith(p))
   if (!user && !isPublic) {
     return NextResponse.redirect(new URL('/login', request.url))
   }

@@ -1,0 +1,87 @@
+import { addDays } from './dates'
+
+export function ewmaTrend(weights: { date: string; weight_kg: number }[], alpha = 0.2): { date: string; trend: number }[] {
+  const sorted = [...weights].sort((a, b) => a.date.localeCompare(b.date))
+  const out: { date: string; trend: number }[] = []
+  let prev: number | null = null
+  for (const w of sorted) {
+    prev = prev === null ? w.weight_kg : alpha * w.weight_kg + (1 - alpha) * prev
+    out.push({ date: w.date, trend: Math.round(prev * 100) / 100 })
+  }
+  return out
+}
+
+const KCAL_PER_KG = 7700
+
+export function backCalcTdee(p: { avgIntake: number; trendDeltaKg: number; windowDays: number; loggedDays: number; weighIns: number }) {
+  const tdee = Math.round(p.avgIntake + (-p.trendDeltaKg * KCAL_PER_KG) / p.windowDays)
+  const reliable = p.loggedDays >= 10 && p.weighIns >= 2 && p.windowDays >= 14
+  return { tdee, reliable }
+}
+
+/** Rate of trend-weight change per week, comparing the latest point to ~14 days earlier. */
+export function weeklyTrendRate(trendPoints: { date: string; trend: number }[], today: string): number {
+  const start14 = addDays(today, -14)
+  const lastTrend = trendPoints[trendPoints.length - 1]
+  const trendAt14 = [...trendPoints].filter(p => p.date <= start14).pop()
+  return lastTrend && trendAt14 ? (lastTrend.trend - trendAt14.trend) / 2 : 0
+}
+
+/** Shared TDEE + trend-rate computation from raw weigh-ins and a date→calories map, over a 21-day window. */
+export function computeTrendAndTdee(
+  rawPoints: { date: string; weight_kg: number }[],
+  eatenByDate: Map<string, number>,
+  today: string
+): { trendPoints: { date: string; trend: number }[]; tdee: number; reliable: boolean; ratePerWeekKg: number } {
+  const trendPoints = ewmaTrend(rawPoints)
+
+  const start21 = addDays(today, -21)
+  const loggedDates21 = [...eatenByDate.keys()].filter(d => d >= start21 && d <= today)
+  const loggedDays = loggedDates21.length
+  const avgIntake = loggedDays > 0
+    ? Math.round(loggedDates21.reduce((sum, d) => sum + (eatenByDate.get(d) ?? 0), 0) / loggedDays)
+    : 0
+
+  const trendInWindow = trendPoints.filter(p => p.date >= start21 && p.date <= today)
+  const weighIns = trendInWindow.length
+  const trendDeltaKg = trendInWindow.length >= 2
+    ? trendInWindow[trendInWindow.length - 1].trend - trendInWindow[0].trend
+    : 0
+
+  const { tdee, reliable } = backCalcTdee({ avgIntake, trendDeltaKg, windowDays: 21, loggedDays, weighIns })
+  const ratePerWeekKg = weeklyTrendRate(trendPoints, today)
+
+  return { trendPoints, tdee, reliable, ratePerWeekKg }
+}
+
+export function goalEta(p: { currentTrendKg: number; goalKg: number; ratePerWeekKg: number; today: string }) {
+  const toLose = p.currentTrendKg - p.goalKg
+  if (toLose <= 0) return { etaDate: p.today, weeks: 0 }
+  if (p.ratePerWeekKg >= -0.05) return { etaDate: null, weeks: null } // flat or gaining
+  const weeks = toLose / -p.ratePerWeekKg
+  return { etaDate: addDays(p.today, Math.round(weeks * 7)), weeks: Math.round(weeks * 10) / 10 }
+}
+
+type PatternEntry = { date: string; name: string; calories: number }
+
+export function foodPatterns(entries: PatternEntry[], overBudgetDates: Set<string>, minCount = 3) {
+  const byName = new Map<string, { count: number; totalKcal: number; dates: Set<string> }>()
+  for (const e of entries) {
+    const key = e.name.trim()
+    const rec = byName.get(key) ?? { count: 0, totalKcal: 0, dates: new Set<string>() }
+    rec.count++; rec.totalKcal += e.calories; rec.dates.add(e.date)
+    byName.set(key, rec)
+  }
+  const topFoods = [...byName.entries()]
+    .map(([name, r]) => ({ name, count: r.count, avgKcal: Math.round(r.totalKcal / r.count) }))
+    .sort((a, b) => b.count - a.count).slice(0, 10)
+  const budgetBlowers = [...byName.entries()]
+    .filter(([, r]) => r.count >= minCount)
+    .map(([name, r]) => {
+      const overDays = [...r.dates].filter(d => overBudgetDates.has(d)).length
+      return { name, count: r.count, overRate: overDays / r.dates.size }
+    })
+    .filter(f => f.overRate >= 0.5)
+    .sort((a, b) => b.overRate - a.overRate).slice(0, 5)
+  return { topFoods, budgetBlowers }
+}

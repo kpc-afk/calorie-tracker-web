@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react'
 import { haptic } from '@/lib/utils/haptic'
 import { todayString } from '@/lib/utils/format'
+import { appCache } from '@/lib/utils/cache'
+import MicroLabel from './ui/MicroLabel'
 
 type HistoryItem = {
   name: string
@@ -58,6 +60,8 @@ export default function FoodHistoryStrip({ onAdded }: Props) {
         source: 'history',
       }),
     })
+    appCache.invalidatePrefix('/api/entries')
+    appCache.invalidatePrefix('/api/week')
     onAdded?.()
     setTimeout(() => setAddedNames(prev => {
       const next = new Set(prev)
@@ -68,7 +72,7 @@ export default function FoodHistoryStrip({ onAdded }: Props) {
 
   return (
     <div className="px-4 pb-2">
-      <div className="text-zinc-600 text-xs font-semibold uppercase tracking-wider mb-1.5">Recent</div>
+      <MicroLabel className="mb-1.5">Recent</MicroLabel>
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {items.map(item => {
           const added = addedNames.has(item.name)
@@ -77,13 +81,13 @@ export default function FoodHistoryStrip({ onAdded }: Props) {
               key={item.name}
               onClick={() => handleAdd(item)}
               disabled={added}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius)] text-xs font-medium transition-colors border ${
                 added
-                  ? 'bg-green-500/15 text-green-400 border-green-500/30'
-                  : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-zinc-600 active:scale-95'
+                  ? 'border-[var(--accent)]/40 text-[var(--accent)]'
+                  : 'border-[var(--hairline)] text-[var(--ink-60)] hover:border-[var(--hairline-strong)] active:scale-95'
               }`}>
               <span className="truncate max-w-[100px]">{added ? '✓ ' : ''}{item.name}</span>
-              <span className="text-zinc-500 shrink-0">{Math.round(item.calories)}</span>
+              <span className="text-[var(--muted)] tnum shrink-0">{Math.round(item.calories)}</span>
             </button>
           )
         })}

@@ -21,15 +21,15 @@ export default function WeightSparkline({ weights }: Props) {
   const last = vals[vals.length - 1]
   const diff = last - first
   const going = diff < -0.05 ? 'down' : diff > 0.05 ? 'up' : 'flat'
-  const color = going === 'down' ? '#22c55e' : going === 'up' ? '#ef4444' : '#71717a'
+  const color = going === 'down' ? 'var(--accent)' : going === 'up' ? 'var(--danger)' : 'var(--muted)'
   const label = going === 'down' ? `↓ ${Math.abs(diff).toFixed(1)} kg` : going === 'up' ? `↑ ${diff.toFixed(1)} kg` : '→ stable'
 
   return (
-    <div className="flex items-center gap-1.5 mt-0.5">
+    <div className="flex items-center gap-1.5">
       <svg width={W} height={H} style={{ overflow: 'visible' }}>
         <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span style={{ fontSize: 10, color, fontWeight: 600 }}>{label} this week</span>
+      <span className="tnum" style={{ fontSize: 10, color, fontWeight: 600 }}>{label} this week</span>
     </div>
   )
 }

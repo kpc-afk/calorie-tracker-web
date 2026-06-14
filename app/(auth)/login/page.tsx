@@ -26,11 +26,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)] flex items-center justify-center p-6">
       <div className="w-full max-w-xs">
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-3">🥗</div>
-          <h1 className="text-white text-2xl font-bold">Calorie Tracker</h1>
+        <div className="text-center mb-10">
+          <h1 className="font-display italic text-[40px] leading-none">Calorie Tracker</h1>
         </div>
         <form onSubmit={handleLogin} className="space-y-4">
           <input
@@ -40,13 +39,13 @@ export default function LoginPage() {
             placeholder="Password"
             autoFocus
             required
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500 text-center text-lg tracking-widest"
+            className="w-full bg-transparent border border-[var(--hairline)] rounded-[var(--radius)] px-4 py-3 text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--hairline-strong)] text-center text-lg tracking-widest tnum"
           />
-          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+          {error && <p className="text-[var(--danger)] text-sm text-center">{error}</p>}
           <button
             type="submit"
             disabled={loading || !password}
-            className="w-full bg-green-500 text-black font-semibold py-3 rounded-xl disabled:opacity-50">
+            className="w-full bg-[var(--accent)] text-[var(--accent-ink)] font-semibold py-3 rounded-[var(--radius)] disabled:opacity-40">
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>

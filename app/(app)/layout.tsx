@@ -59,19 +59,19 @@ const tabs = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   return (
-    <div className="flex flex-col h-screen bg-black overflow-hidden">
+    <div className="flex flex-col h-screen bg-[var(--bg)] overflow-hidden">
       <main className="flex-1 overflow-y-auto">{children}</main>
-      <nav className="shrink-0 bg-zinc-900/95 border-t border-zinc-800/60 flex safe-area-pb backdrop-blur-sm">
+      <nav className="shrink-0 flex safe-area-pb hairline-t">
         {tabs.map(({ href, label, Icon }) => {
           const active = pathname === href
           return (
             <Link key={href} href={href}
-              className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-colors relative ${active ? 'text-green-400' : 'text-zinc-500'}`}>
+              className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-colors relative ${active ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}>
               {active && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-green-400 rounded-full" />
+                <span className="absolute -top-px left-0 right-0 h-px bg-[var(--accent)]" />
               )}
               <Icon />
-              <span className="text-[10px] font-semibold tracking-wide">{label}</span>
+              <span className="text-[10px] font-semibold tracking-[0.08em] uppercase">{label}</span>
             </Link>
           )
         })}

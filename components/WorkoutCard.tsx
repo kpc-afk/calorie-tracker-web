@@ -1,22 +1,24 @@
+import HairlineCard from './ui/HairlineCard'
+import MicroLabel from './ui/MicroLabel'
+
 type Props = { activeCalories: number; message: string; onAdd: () => void; added: boolean }
 
 export default function WorkoutCard({ activeCalories, message, onAdd, added }: Props) {
   return (
-    <div className={`bg-zinc-800 rounded-2xl p-4 border ${added ? 'border-green-700 opacity-60' : 'border-zinc-700'}`}>
-      <div className="flex items-center gap-3 mb-2">
-        <span className="text-2xl">🏃</span>
-        <div>
-          <div className="text-white font-semibold text-sm">+{Math.round(activeCalories)} kcal burned</div>
-          <div className="text-gray-400 text-xs">Added to your daily budget</div>
+    <HairlineCard className={`p-4 ${added ? 'opacity-50' : ''}`}>
+      <div className="mb-2">
+        <div className="font-display tnum text-[var(--ink)] text-2xl leading-none">
+          +{Math.round(activeCalories)}<span className="text-[0.4em] text-[var(--muted)] ml-1.5">kcal</span>
         </div>
+        <MicroLabel className="mt-1.5">Workout — added to budget</MicroLabel>
       </div>
-      <p className="text-gray-500 text-xs mb-3 italic leading-relaxed">{message}</p>
+      <p className="text-[var(--ink-60)] text-[13px] leading-relaxed mb-3">{message}</p>
       <div className="flex justify-end">
         {added
-          ? <span className="text-green-500 text-xs font-medium">✓ Added</span>
-          : <button onClick={onAdd} className="bg-green-500 text-black text-xs font-semibold px-4 py-1.5 rounded-full">Add workout</button>
+          ? <span className="text-[11px] tnum text-[var(--accent)]">✓ Added</span>
+          : <button onClick={onAdd} className="bg-[var(--accent)] text-[var(--accent-ink)] text-[13px] font-semibold px-4 py-1.5 rounded-[var(--radius)]">Add workout</button>
         }
       </div>
-    </div>
+    </HairlineCard>
   )
 }

@@ -984,7 +984,7 @@ export function suggestTargetAdjustment(p: Params): TargetSuggestion {
 
 **Files:** Create `lib/ai/digest.ts`; Rewrite `app/api/coach/route.ts`; Create `app/api/weekly-review/route.ts`; Redesign `app/(app)/coach/page.tsx` (frontend-design skill)
 
-- [ ] **Step 1:** `lib/ai/digest.ts` — `buildCoachDigest(): Promise<string>`: load profile + 28 days entries/activity/weights, compute via existing helpers (`getBudgetBreakdown`, `ewmaTrend`, `backCalcTdee`, `computeWeekBank`) and return a compact plain-text block (~15 lines, no raw item dumps):
+- [x] **Step 1:** `lib/ai/digest.ts` — `buildCoachDigest(): Promise<string>`: load profile + 28 days entries/activity/weights, compute via existing helpers (`getBudgetBreakdown`, `ewmaTrend`, `backCalcTdee`, `computeWeekBank`) and return a compact plain-text block (~15 lines, no raw item dumps):
 
 ```
 PROFILE: 83.0kg (trend 82.4kg, −0.41kg/wk), goal 72kg, base target 1500 kcal, protein floor 130g
@@ -994,7 +994,7 @@ THIS WEEK: bank −120 kcal · 2 workout days
 LAST 7 DAYS: Mon 1480/1500 ✓ · Tue 1720/1680 ✗ · ...
 ```
 
-- [ ] **Step 2:** Rewrite `app/api/coach/route.ts`: `export const runtime = 'edge'`; build the model with `makeModel(PRIMARY_MODEL, { temperature: 0.5, systemInstruction })` — **systemInstruction goes on `getGenerativeModel`, NOT `startChat`** (the current code passes it to `startChat` where it may be ignored — this is the bug fix). System prompt = persona block (same voice as dispatcher) + digest + "Answer concisely, cite their numbers, never log or modify data." Use `chat.sendMessageStream(message)` and return a streaming `text/plain` response:
+- [x] **Step 2:** Rewrite `app/api/coach/route.ts`: `export const runtime = 'edge'`; build the model with `makeModel(PRIMARY_MODEL, { temperature: 0.5, systemInstruction })` — **systemInstruction goes on `getGenerativeModel`, NOT `startChat`** (the current code passes it to `startChat` where it may be ignored — this is the bug fix). System prompt = persona block (same voice as dispatcher) + digest + "Answer concisely, cite their numbers, never log or modify data." Use `chat.sendMessageStream(message)` and return a streaming `text/plain` response:
 
 ```ts
 const result = await chat.sendMessageStream(message)
@@ -1012,9 +1012,9 @@ return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=ut
 
 Capacity errors before streaming starts → JSON `{error}` with 429/503 like chat (client distinguishes by Content-Type).
 
-- [ ] **Step 3:** `app/api/weekly-review/route.ts`: GET returns the cached `insights` row (`type 'weekly_review'`, current ISO week) or `{ exists: false }`; POST generates one Gemini call (non-streaming, JSON schema `{ wins: string[], concerns: string[], focus: string }`) from the digest, upserts into `insights`, returns it. NO auto-generation.
-- [ ] **Step 4:** Redesign the Coach page (frontend-design skill): same conversation behavior + localStorage history, restyled like the chat tab; client reads the streaming body via `res.body.getReader()` appending text progressively; **Weekly review panel** at top — if cached review exists show it (WINS / WATCH / FOCUS sections with micro-labels), else a "Generate weekly review" hairline button (one tap, one call, then cached); starter chips restyled.
-- [ ] **Step 5:** Verify streaming visibly types in dev; weekly review generates once then loads from DB on reload (check the network tab — second load must be GET-only). `npm run build`; commit: `git commit -am "feat: coach v2 — digest, true streaming, systemInstruction fix, DB-cached weekly review"`
+- [x] **Step 3:** `app/api/weekly-review/route.ts`: GET returns the cached `insights` row (`type 'weekly_review'`, current ISO week) or `{ exists: false }`; POST generates one Gemini call (non-streaming, JSON schema `{ wins: string[], concerns: string[], focus: string }`) from the digest, upserts into `insights`, returns it. NO auto-generation.
+- [x] **Step 4:** Redesign the Coach page (frontend-design skill): same conversation behavior + localStorage history, restyled like the chat tab; client reads the streaming body via `res.body.getReader()` appending text progressively; **Weekly review panel** at top — if cached review exists show it (WINS / WATCH / FOCUS sections with micro-labels), else a "Generate weekly review" hairline button (one tap, one call, then cached); starter chips restyled.
+- [x] **Step 5:** Verify streaming visibly types in dev; weekly review generates once then loads from DB on reload (check the network tab — second load must be GET-only). `npm run build`; commit: `git commit -am "feat: coach v2 — digest, true streaming, systemInstruction fix, DB-cached weekly review"`
 
 ### Task 20: Settings redesign + budget knobs
 

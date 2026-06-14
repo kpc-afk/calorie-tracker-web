@@ -1,17 +1,26 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { haptic } from '@/lib/utils/haptic'
+import MicroLabel from '@/components/ui/MicroLabel'
+import HairlineCard from '@/components/ui/HairlineCard'
+import type { WeeklyReview } from '@/app/api/weekly-review/route'
 
 type CoachMessage = { role: 'user' | 'assistant'; content: string }
 
 const HISTORY_KEY = 'coach_history'
 
 const STARTERS = [
-  "Why am I not losing weight?",
-  "What should I eat to hit protein today?",
-  "How was my week?",
-  "What days do I tend to overeat?",
+  'Why am I not losing weight?',
+  'What should I eat to hit protein today?',
+  'How was my week?',
+  'What days do I tend to overeat?',
 ]
+
+const ERROR_COPY: Record<string, string> = {
+  rate_limit: 'Gemini free-tier limit hit — wait ~30s.',
+  overloaded: 'Gemini is busy right now.',
+}
+const DEFAULT_ERROR = 'Something went wrong — try again.'
 
 export default function CoachPage() {
   const [messages, setMessages] = useState<CoachMessage[]>(() => {
@@ -22,8 +31,12 @@ export default function CoachPage() {
   })
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [review, setReview] = useState<WeeklyReview | null>(null)
+  const [reviewChecked, setReviewChecked] = useState(false)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewError, setReviewError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -33,30 +46,82 @@ export default function CoachPage() {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(messages))
   }, [messages])
 
-  async function sendMessage(text: string) {
-    if (!text.trim() || loading) return
+  useEffect(() => {
+    fetch('/api/weekly-review')
+      .then(r => r.json())
+      .then(d => { if (d.exists) setReview(d.review) })
+      .catch(() => { /* ignore */ })
+      .finally(() => setReviewChecked(true))
+  }, [])
+
+  async function generateReview() {
     haptic('light')
-    const userMsg: CoachMessage = { role: 'user', content: text.trim() }
-    setMessages(prev => [...prev, userMsg])
+    setReviewLoading(true)
+    setReviewError(null)
+    try {
+      const res = await fetch('/api/weekly-review', { method: 'POST' })
+      const data = await res.json()
+      if (data.review) setReview(data.review)
+      else setReviewError(ERROR_COPY[data.error] ?? DEFAULT_ERROR)
+    } catch {
+      setReviewError(DEFAULT_ERROR)
+    }
+    setReviewLoading(false)
+  }
+
+  function handleInput(e: React.FormEvent<HTMLTextAreaElement>) {
+    const el = e.currentTarget
+    requestAnimationFrame(() => {
+      el.style.height = 'auto'
+      el.style.height = `${Math.min(el.scrollHeight, 128)}px`
+    })
+  }
+
+  async function sendMessage(text: string) {
+    const trimmed = text.trim()
+    if (!trimmed || loading) return
+    haptic('light')
+    const history = messages.slice(-10)
+    setMessages(prev => [...prev, { role: 'user', content: trimmed }, { role: 'assistant', content: '' }])
     setInput('')
+    if (textareaRef.current) textareaRef.current.style.height = 'auto'
     setLoading(true)
+
+    function setReply(content: string) {
+      setMessages(prev => {
+        const copy = [...prev]
+        copy[copy.length - 1] = { role: 'assistant', content }
+        return copy
+      })
+    }
 
     try {
       const res = await fetch('/api/coach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text.trim(),
-          history: messages.slice(-10),
-        }),
+        body: JSON.stringify({ message: trimmed, history }),
       })
-      const data = await res.json()
-      if (data.reply) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
+
+      const contentType = res.headers.get('Content-Type') ?? ''
+      if (contentType.includes('application/json')) {
+        const data = await res.json()
+        setReply(ERROR_COPY[data.error] ?? DEFAULT_ERROR)
+      } else if (res.body) {
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let acc = ''
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          acc += decoder.decode(value, { stream: true })
+          setReply(acc)
+        }
         haptic('light')
+      } else {
+        setReply(DEFAULT_ERROR)
       }
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Something went wrong — try again.' }])
+      setReply(DEFAULT_ERROR)
     }
     setLoading(false)
   }
@@ -68,102 +133,129 @@ export default function CoachPage() {
     }
   }
 
-  return (
-    <div className="flex flex-col h-full bg-black">
-      {/* Header */}
-      <div className="shrink-0 px-4 pt-5 pb-4 bg-zinc-950 border-b border-zinc-800/60">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-white font-bold text-lg">AI Coach</h1>
-            <p className="text-zinc-500 text-xs mt-0.5">Ask anything about your nutrition</p>
-          </div>
-          {messages.length > 0 && (
-            <button
-              onClick={() => { setMessages([]); localStorage.removeItem(HISTORY_KEY) }}
-              className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
-              Clear
-            </button>
-          )}
-        </div>
+  function clearHistory() {
+    haptic('light')
+    setMessages([])
+    localStorage.removeItem(HISTORY_KEY)
+  }
 
+  const canSend = input.trim().length > 0 && !loading
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="shrink-0 px-5 pt-6 pb-3 flex items-center justify-between">
+        <div className="font-display italic text-[26px] leading-none">Coach</div>
+        {messages.length > 0 && (
+          <button onClick={clearHistory}
+            className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)] hover:text-[var(--ink-60)] transition-colors">
+            Clear
+          </button>
+        )}
       </div>
 
+      {/* Weekly review */}
+      {reviewChecked && (
+        <div className="shrink-0 px-5 mb-3">
+          <HairlineCard className="p-4 space-y-3">
+            <MicroLabel>Weekly review</MicroLabel>
+            {review ? (
+              <>
+                <div className="space-y-1.5">
+                  <MicroLabel>Wins</MicroLabel>
+                  {review.wins.map((w, i) => (
+                    <div key={i} className="pl-3 border-l border-[var(--accent)] text-[var(--ink)] text-[14px] leading-relaxed">{w}</div>
+                  ))}
+                </div>
+                {review.concerns.length > 0 && (
+                  <div className="space-y-1.5">
+                    <MicroLabel>Watch</MicroLabel>
+                    {review.concerns.map((c, i) => (
+                      <div key={i} className="pl-3 border-l border-[var(--hairline-strong)] text-[var(--ink-60)] text-[14px] leading-relaxed">{c}</div>
+                    ))}
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <MicroLabel>Focus</MicroLabel>
+                  <p className="text-[var(--ink)] text-[14px] leading-relaxed">{review.focus}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <button onClick={generateReview} disabled={reviewLoading}
+                  className="w-full border border-[var(--hairline)] hover:border-[var(--hairline-strong)] text-[var(--ink)] text-sm font-medium py-2.5 rounded-[var(--radius)] transition-colors disabled:opacity-50">
+                  {reviewLoading ? 'Generating…' : 'Generate weekly review'}
+                </button>
+                {reviewError && <p className="text-[var(--danger)] text-[13px] text-center">{reviewError}</p>}
+              </>
+            )}
+          </HairlineCard>
+        </div>
+      )}
+
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-5 pb-3 space-y-4 min-h-0">
         {messages.length === 0 && (
-          <div className="pt-4">
-            <div className="text-zinc-600 text-xs text-center mb-4">Ask me anything about your nutrition</div>
+          <div className="pt-2 space-y-3">
+            <MicroLabel>Ask anything</MicroLabel>
             <div className="grid grid-cols-2 gap-2">
               {STARTERS.map(s => (
                 <button key={s} onClick={() => sendMessage(s)}
-                  className="bg-zinc-900 rounded-xl p-3 text-left border border-zinc-800 hover:border-zinc-700 transition-colors">
-                  <p className="text-zinc-400 text-xs leading-relaxed">{s}</p>
+                  className="text-left border border-[var(--hairline)] hover:border-[var(--hairline-strong)] rounded-[var(--radius)] p-3 transition-colors">
+                  <p className="text-[var(--ink-60)] text-[13px] leading-relaxed">{s}</p>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {m.role === 'assistant' && (
-              <div className="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0 mr-2 mt-0.5">
-                <span className="text-blue-400 text-xs">✦</span>
-              </div>
-            )}
-            <div className={`max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
-              m.role === 'user'
-                ? 'bg-zinc-800 text-white rounded-br-sm'
-                : 'bg-zinc-900 text-zinc-200 rounded-bl-sm border border-zinc-800'
-            }`}>
+        {messages.map((m, i) => {
+          const isLast = i === messages.length - 1
+          if (m.role === 'user') return (
+            <div key={i} className="flex justify-end">
+              <div className="max-w-[80%] text-[var(--ink-60)] text-[15px] leading-relaxed text-right">{m.content}</div>
+            </div>
+          )
+          return (
+            <div key={i} className="pl-3 border-l border-[var(--hairline)] text-[var(--ink)] text-[15px] leading-relaxed whitespace-pre-wrap min-h-[1.5em]">
               {m.content}
+              {loading && isLast && (
+                m.content === ''
+                  ? (
+                    <span className="inline-flex gap-1 align-middle">
+                      {[0, 1, 2].map(d => (
+                        <span key={d} className="w-1.5 h-1.5 rounded-full bg-[var(--muted)] animate-pulse" style={{ animationDelay: `${d * 150}ms` }} />
+                      ))}
+                    </span>
+                  )
+                  : <span className="inline-block w-[2px] h-[1em] bg-[var(--accent)] ml-0.5 align-middle animate-pulse" />
+              )}
             </div>
-          </div>
-        ))}
-
-        {loading && (
-          <div className="flex justify-start">
-            <div className="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0 mr-2 mt-0.5">
-              <span className="text-blue-400 text-xs">✦</span>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-bl-sm px-4 py-3">
-              <div className="flex gap-1">
-                {[0, 1, 2].map(i => (
-                  <div key={i} className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-pulse"
-                    style={{ animationDelay: `${i * 150}ms` }} />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
+          )
+        })}
         <div ref={bottomRef} />
       </div>
 
       {/* Input */}
-      <div className="shrink-0 px-4 pb-4 pt-2 bg-zinc-950 border-t border-zinc-800/60">
+      <div className="shrink-0 border-t border-[var(--hairline)] px-5 py-3 safe-area-pb">
         <div className="flex items-end gap-2">
           <textarea
-            ref={inputRef}
+            ref={textareaRef}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onInput={handleInput}
             placeholder="Ask your coach…"
             rows={1}
-            className="flex-1 bg-zinc-900 text-white rounded-2xl px-4 py-3 text-sm resize-none focus:outline-none border border-zinc-800 focus:border-blue-500/60 placeholder-zinc-600 transition-colors"
-            style={{ maxHeight: 120, overflowY: input.split('\n').length > 4 ? 'auto' : 'hidden' }}
+            className="flex-1 bg-transparent text-[var(--ink)] placeholder-[var(--muted)] border border-[var(--hairline)] rounded-[var(--radius)] px-4 py-2.5 text-sm resize-none focus:outline-none focus:border-[var(--hairline-strong)]"
+            style={{ minHeight: '42px', maxHeight: '128px' }}
           />
-          <button
-            onClick={() => sendMessage(input)}
-            disabled={!input.trim() || loading}
-            className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center shrink-0 disabled:opacity-40 transition-opacity">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
+          <button onClick={() => sendMessage(input)} disabled={!canSend}
+            className="bg-[var(--accent)] text-[var(--accent-ink)] font-semibold rounded-[var(--radius)] w-9 h-9 flex items-center justify-center shrink-0 disabled:opacity-30 transition-opacity text-lg leading-none">
+            ↑
           </button>
         </div>
-        <p className="text-zinc-700 text-xs text-center mt-2">Coach has full access to your 14-day history</p>
+        <p className="text-center text-[var(--muted)] text-xs mt-1.5">Coach has full access to your last 28 days</p>
       </div>
     </div>
   )

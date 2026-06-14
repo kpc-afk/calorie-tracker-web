@@ -1032,7 +1032,7 @@ Capacity errors before streaming starts → JSON `{error}` with 429/503 like cha
 
 **Files:** Create `app/api/health-sync/route.ts`, `lib/supabase/admin.ts`; Modify `.env.local` (user adds keys), `CLAUDE.md` env docs
 
-- [ ] **Step 1:** `lib/supabase/admin.ts`:
+- [x] **Step 1:** `lib/supabase/admin.ts`:
 
 ```ts
 import { createClient } from '@supabase/supabase-js'
@@ -1046,7 +1046,7 @@ export function createAdminClient() {
 }
 ```
 
-- [ ] **Step 2:** `app/api/health-sync/route.ts` (node runtime — needs `crypto.timingSafeEqual`):
+- [x] **Step 2:** `app/api/health-sync/route.ts` (node runtime — needs `crypto.timingSafeEqual`):
 
 ```ts
 import { NextRequest, NextResponse } from 'next/server'
@@ -1105,8 +1105,8 @@ export async function POST(req: NextRequest) {
 
 Check `001_initial.sql` for daily_activity's unique constraint name/columns — adjust `onConflict` to match (it must have one for date+user; if the upsert helper in `lib/db/queries.ts:67` uses a different conflict target, mirror that).
 
-- [ ] **Step 3:** User action (STOP and ask): add `SUPABASE_SERVICE_ROLE_KEY` (Supabase dashboard → Settings → API) and a generated `HEALTH_SYNC_SECRET` (`openssl rand -hex 24`) to `.env.local` and to Vercel env vars.
-- [ ] **Step 4:** Test locally:
+- [x] **Step 3:** User action (STOP and ask): add `SUPABASE_SERVICE_ROLE_KEY` (Supabase dashboard → Settings → API) and a generated `HEALTH_SYNC_SECRET` (`openssl rand -hex 24`) to `.env.local` and to Vercel env vars.
+- [x] **Step 4:** Test locally:
 
 ```bash
 curl -s -X POST localhost:3000/api/health-sync -H "Authorization: Bearer $HEALTH_SYNC_SECRET" \

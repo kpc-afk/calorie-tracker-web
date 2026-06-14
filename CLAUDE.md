@@ -40,7 +40,11 @@ Open `http://localhost:3000` — redirects to login.
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 GEMINI_API_KEY=your_gemini_api_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+HEALTH_SYNC_SECRET=your_generated_secret
 ```
+
+`SUPABASE_SERVICE_ROLE_KEY` and `HEALTH_SYNC_SECRET` are only needed for `/api/health-sync` (Apple Health → Shortcuts sync). Both are server-side only.
 
 All three are required. `GEMINI_API_KEY` is server-side only (not `NEXT_PUBLIC_`).
 

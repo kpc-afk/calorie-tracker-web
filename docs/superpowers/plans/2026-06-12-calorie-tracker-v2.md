@@ -1123,7 +1123,7 @@ Verify dashboard shows the steps/workout and the weight appears in Progress.
 
 **Files:** Create `docs/health-sync-shortcut.md`; Modify `CLAUDE.md`
 
-- [ ] **Step 1:** Write `docs/health-sync-shortcut.md` — a complete, step-by-step iOS Shortcuts recipe:
+- [x] **Step 1:** Write `docs/health-sync-shortcut.md` — a complete, step-by-step iOS Shortcuts recipe:
   1. Shortcuts app → + → name "Sync Health".
   2. Add **Find Health Samples** → type Steps, today, Group By: none → **Calculate Statistics** (Sum) → save to variable `Steps`.
   3. Repeat for Active Energy (Sum, kcal) → `Energy`; Weight (Most Recent) → `Weight`.
@@ -1131,6 +1131,6 @@ Verify dashboard shows the steps/workout and the weight appears in Progress.
   5. Add **Get Contents of URL**: `https://<your-vercel-url>/api/health-sync`, Method POST, Headers `Authorization: Bearer <HEALTH_SYNC_SECRET>`, Request Body: JSON ← Dictionary.
   6. Automation: Shortcuts → Automation → + → Time of Day 21:30 daily → Run Immediately → select "Sync Health".
   7. Note: first run prompts for Health read permissions — allow Steps, Active Energy, Weight; chat screenshots remain the fallback for individual workouts.
-- [ ] **Step 2:** Update `CLAUDE.md`: budget formula section → v2 formula with baseline/earn-back; tables list (6 + insights); model name `gemini-3.5-flash`; new env vars (`SUPABASE_SERVICE_ROLE_KEY`, `HEALTH_SYNC_SECRET`, optional `GEMINI_FALLBACK_MODEL`); new routes (`analytics`, `week`, `adaptive-target`, `weekly-review`, `health-sync`); design language one-liner; removed `coaching-nudge`.
-- [ ] **Step 3:** Final sweep: `npm test && npm run build` — all green. Browser-verify all five tabs at 390×844 one last time.
-- [ ] **Step 4:** Commit: `git commit -am "docs: health-sync shortcut recipe + CLAUDE.md v2"`
+- [x] **Step 2:** Update `CLAUDE.md`: budget formula section → v2 formula with baseline/earn-back; tables list (6 + insights); model name `gemini-3.5-flash`; new env vars (`SUPABASE_SERVICE_ROLE_KEY`, `HEALTH_SYNC_SECRET`, optional `GEMINI_FALLBACK_MODEL`); new routes (`analytics`, `week`, `adaptive-target`, `weekly-review`, `health-sync`); design language one-liner; removed `coaching-nudge`.
+- [x] **Step 3:** Final sweep: `npm test && npm run build` — all green. Browser-verify all five tabs at 390×844 one last time.
+- [x] **Step 4:** Commit: `git commit -am "docs: health-sync shortcut recipe + CLAUDE.md v2"`

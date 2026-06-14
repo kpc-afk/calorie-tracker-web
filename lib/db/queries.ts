@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import type { UserProfile, FoodEntry, WeightEntry, DailyActivity, SavedFood, MealTemplate, NutritionResult } from './types'
+import type { UserProfile, FoodEntry, WeightEntry, DailyActivity, SavedFood, MealTemplate, NutritionResult, Insight } from './types'
 import { todayLondon, daysAgoLondon, addDays } from '@/lib/utils/dates'
 
 // Profile
@@ -199,6 +199,22 @@ export async function saveMealTemplate(name: string, items: NutritionResult[]) {
 export async function deleteMealTemplate(id: string) {
   const supabase = await createClient()
   await supabase.from('meal_templates').delete().eq('id', id)
+}
+
+// Insights (cached AI/derived results, keyed by type + ISO week)
+export async function getInsight(type: Insight['type'], periodKey: string): Promise<Insight | null> {
+  const supabase = await createClient()
+  const { data } = await supabase.from('insights').select('*')
+    .eq('type', type).eq('period_key', periodKey).maybeSingle()
+  return data
+}
+
+export async function upsertInsight(type: Insight['type'], periodKey: string, content: Record<string, unknown>) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { error } = await supabase.from('insights')
+    .upsert({ user_id: user!.id, type, period_key: periodKey, content }, { onConflict: 'user_id,type,period_key' })
+  if (error) throw new Error(`Upsert insight failed: ${error.message}`)
 }
 
 export async function get7DayMacroAverages() {

@@ -9,10 +9,12 @@ import { todayString } from '@/lib/utils/format'
 import { useCachedFetch } from '@/lib/utils/useCachedFetch'
 import { appCache } from '@/lib/utils/cache'
 import { todayLondon, daysAgoLondon, isoWeekKey } from '@/lib/utils/dates'
+import { haptic } from '@/lib/utils/haptic'
 import MicroLabel from '@/components/ui/MicroLabel'
 import HairlineCard from '@/components/ui/HairlineCard'
 import StatNumeral from '@/components/ui/StatNumeral'
 import type { FoodEntry, UserProfile, DailyActivity } from '@/lib/db/types'
+import type { TargetSuggestion } from '@/lib/utils/adaptive'
 
 const GOAL_WEIGHT_KG = 72
 
@@ -65,8 +67,10 @@ export default function ProgressPage() {
   const [weightInput, setWeightInput] = useState('')
   const [logging, setLogging] = useState(false)
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
+  const [suggestionHidden, setSuggestionHidden] = useState(false)
 
   const { data: analytics, refresh: refreshAnalytics } = useCachedFetch<AnalyticsData>('/api/analytics')
+  const { data: suggestion } = useCachedFetch<TargetSuggestion>('/api/adaptive-target')
 
   useEffect(() => {
     fetch(`/api/progress?days=${calDays}`).then(r => r.json()).then(setData)
@@ -94,6 +98,21 @@ export default function ProgressPage() {
     fetch(`/api/progress?days=${calDays}`).then(r => r.json()).then(setData)
     appCache.invalidatePrefix('/api/analytics')
     refreshAnalytics()
+  }
+
+  async function handleSuggestionAction(action: 'apply' | 'dismiss') {
+    haptic(action === 'apply' ? 'medium' : 'light')
+    setSuggestionHidden(true)
+    await fetch('/api/adaptive-target', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    })
+    appCache.invalidatePrefix('/api/adaptive-target')
+    if (action === 'apply') {
+      appCache.invalidatePrefix('/api/profile')
+      fetch('/api/profile').then(r => r.json()).then(setProfile)
+    }
   }
 
   // Build per-day summaries for the table view
@@ -176,6 +195,29 @@ export default function ProgressPage() {
       <div className="px-5 pt-6 pb-4">
         <div className="font-display italic text-[26px] leading-none">Progress</div>
       </div>
+
+      {/* Adaptive target suggestion */}
+      {suggestion?.suggest && profile && !suggestionHidden && (
+        <div className="px-5 mb-5">
+          <HairlineCard className="p-4 border-l-2 border-l-[var(--accent)]">
+            <MicroLabel className="mb-2">Adaptive target</MicroLabel>
+            <p className="text-[13px] text-[var(--ink)] leading-relaxed mb-3">{suggestion.reason}</p>
+            <div className="flex gap-2">
+              <button onClick={() => handleSuggestionAction('apply')}
+                className="flex-1 py-2.5 rounded-[var(--radius)] bg-[var(--accent)] text-[var(--accent-ink)] text-[13px] font-semibold tnum">
+                {(() => {
+                  const delta = profile.target_calories - suggestion.newBase!
+                  return `Apply ${delta >= 0 ? '−' : '+'}${Math.abs(delta)}`
+                })()}
+              </button>
+              <button onClick={() => handleSuggestionAction('dismiss')}
+                className="flex-1 py-2.5 rounded-[var(--radius)] border border-[var(--hairline)] text-[var(--ink-60)] text-[13px] font-medium">
+                Dismiss
+              </button>
+            </div>
+          </HairlineCard>
+        </div>
+      )}
 
       {/* View toggle */}
       <div className="px-5 flex gap-2 mb-5">

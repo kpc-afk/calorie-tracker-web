@@ -19,6 +19,41 @@ export function backCalcTdee(p: { avgIntake: number; trendDeltaKg: number; windo
   return { tdee, reliable }
 }
 
+/** Rate of trend-weight change per week, comparing the latest point to ~14 days earlier. */
+export function weeklyTrendRate(trendPoints: { date: string; trend: number }[], today: string): number {
+  const start14 = addDays(today, -14)
+  const lastTrend = trendPoints[trendPoints.length - 1]
+  const trendAt14 = [...trendPoints].filter(p => p.date <= start14).pop()
+  return lastTrend && trendAt14 ? (lastTrend.trend - trendAt14.trend) / 2 : 0
+}
+
+/** Shared TDEE + trend-rate computation from raw weigh-ins and a date→calories map, over a 21-day window. */
+export function computeTrendAndTdee(
+  rawPoints: { date: string; weight_kg: number }[],
+  eatenByDate: Map<string, number>,
+  today: string
+): { trendPoints: { date: string; trend: number }[]; tdee: number; reliable: boolean; ratePerWeekKg: number } {
+  const trendPoints = ewmaTrend(rawPoints)
+
+  const start21 = addDays(today, -21)
+  const loggedDates21 = [...eatenByDate.keys()].filter(d => d >= start21 && d <= today)
+  const loggedDays = loggedDates21.length
+  const avgIntake = loggedDays > 0
+    ? Math.round(loggedDates21.reduce((sum, d) => sum + (eatenByDate.get(d) ?? 0), 0) / loggedDays)
+    : 0
+
+  const trendInWindow = trendPoints.filter(p => p.date >= start21 && p.date <= today)
+  const weighIns = trendInWindow.length
+  const trendDeltaKg = trendInWindow.length >= 2
+    ? trendInWindow[trendInWindow.length - 1].trend - trendInWindow[0].trend
+    : 0
+
+  const { tdee, reliable } = backCalcTdee({ avgIntake, trendDeltaKg, windowDays: 21, loggedDays, weighIns })
+  const ratePerWeekKg = weeklyTrendRate(trendPoints, today)
+
+  return { trendPoints, tdee, reliable, ratePerWeekKg }
+}
+
 export function goalEta(p: { currentTrendKg: number; goalKg: number; ratePerWeekKg: number; today: string }) {
   const toLose = p.currentTrendKg - p.goalKg
   if (toLose <= 0) return { etaDate: p.today, weeks: 0 }

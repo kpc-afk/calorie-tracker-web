@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getProfile, getFoodEntriesInRange, getWeightHistory, getActivityRange } from '@/lib/db/queries'
 import { getBudgetBreakdown } from '@/lib/utils/calories'
 import { todayLondon, daysAgoLondon, addDays, isoWeekKey } from '@/lib/utils/dates'
-import { ewmaTrend, backCalcTdee, goalEta, foodPatterns } from '@/lib/utils/analytics'
+import { computeTrendAndTdee, goalEta, foodPatterns } from '@/lib/utils/analytics'
 
 const GOAL_WEIGHT_KG = 72 // single-user app; profile has no goal-weight column
 
@@ -36,31 +36,13 @@ export async function GET() {
       proteinByDate.set(e.date, (proteinByDate.get(e.date) ?? 0) + e.protein)
     })
 
-    // --- trend ---
+    // --- trend + tdee + rate ---
     const rawPoints = weights.map(w => ({ date: w.date, weight_kg: w.weight_kg }))
-    const trendPoints = ewmaTrend(rawPoints)
+    const { trendPoints, tdee: tdeeValue, reliable, ratePerWeekKg } = computeTrendAndTdee(rawPoints, eatenByDate, today)
+    const tdee = { tdee: tdeeValue, reliable }
 
-    // --- tdee: 21-day window ---
-    const start21 = daysAgoLondon(21)
-    const loggedDates21 = [...eatenByDate.keys()].filter(d => d >= start21 && d <= today)
-    const loggedDays = loggedDates21.length
-    const avgIntake = loggedDays > 0
-      ? Math.round(loggedDates21.reduce((sum, d) => sum + (eatenByDate.get(d) ?? 0), 0) / loggedDays)
-      : 0
-
-    const trendInWindow = trendPoints.filter(p => p.date >= start21 && p.date <= today)
-    const weighIns = trendInWindow.length
-    const trendDeltaKg = trendInWindow.length >= 2
-      ? trendInWindow[trendInWindow.length - 1].trend - trendInWindow[0].trend
-      : 0
-
-    const tdee = backCalcTdee({ avgIntake, trendDeltaKg, windowDays: 21, loggedDays, weighIns })
-
-    // --- eta: rate = (last trend − trend 14 days earlier) / 2 per week ---
-    const start14 = daysAgoLondon(14)
+    // --- eta ---
     const lastTrend = trendPoints[trendPoints.length - 1]
-    const trendAt14 = [...trendPoints].filter(p => p.date <= start14).pop()
-    const ratePerWeekKg = lastTrend && trendAt14 ? (lastTrend.trend - trendAt14.trend) / 2 : 0
     const eta = lastTrend
       ? goalEta({ currentTrendKg: lastTrend.trend, goalKg: GOAL_WEIGHT_KG, ratePerWeekKg, today })
       : { etaDate: null, weeks: null }

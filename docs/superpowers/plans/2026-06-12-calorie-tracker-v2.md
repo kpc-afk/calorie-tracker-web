@@ -914,7 +914,7 @@ export function foodPatterns(entries: PatternEntry[], overBudgetDates: Set<strin
 
 **Files:** Create `lib/utils/adaptive.ts`, `lib/utils/adaptive.test.ts`, `app/api/adaptive-target/route.ts`; Modify `app/(app)/progress/page.tsx` (card at top)
 
-- [ ] **Step 1:** Failing tests `lib/utils/adaptive.test.ts`:
+- [x] **Step 1:** Failing tests `lib/utils/adaptive.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -943,7 +943,7 @@ describe('suggestTargetAdjustment', () => {
 })
 ```
 
-- [ ] **Step 2:** Implement `lib/utils/adaptive.ts`:
+- [x] **Step 2:** Implement `lib/utils/adaptive.ts`:
 
 ```ts
 type Params = {
@@ -972,9 +972,9 @@ export function suggestTargetAdjustment(p: Params): TargetSuggestion {
 }
 ```
 
-- [ ] **Step 3:** `npm test` — PASS. `app/api/adaptive-target/route.ts`: GET computes the suggestion (reuse analytics internals; target rate −0.55 kg/wk) and checks `insights` for an existing `target_suggestion` row this ISO week (dismissed or applied → return `{ suggest: false }`). POST with `{ action: 'apply' | 'dismiss' }`: apply → `updateProfileFields({ deficit_amount: newDeficit, target_calories: newBase })` and record in `insights`; dismiss → record only. (Write `getInsight`/`upsertInsight` helpers in `lib/db/queries.ts` keyed by `(type, period_key)`.)
-- [ ] **Step 4:** Card UI at the top of Progress (and shown until acted on): `HairlineCard` with accent left rule — micro-label "ADAPTIVE TARGET", the reason sentence, two buttons: "Apply −150" (accent fill) / "Dismiss" (hairline). One tap each, optimistic, haptic.
-- [ ] **Step 5:** Browser-verify (with thin data the card should simply not appear). `npm run build`; commit: `git commit -am "feat: adaptive target suggestions"`
+- [x] **Step 3:** `npm test` — PASS. `app/api/adaptive-target/route.ts`: GET computes the suggestion (reuse analytics internals; target rate −0.55 kg/wk) and checks `insights` for an existing `target_suggestion` row this ISO week (dismissed or applied → return `{ suggest: false }`). POST with `{ action: 'apply' | 'dismiss' }`: apply → `updateProfileFields({ deficit_amount: newDeficit, target_calories: newBase })` and record in `insights`; dismiss → record only. (Write `getInsight`/`upsertInsight` helpers in `lib/db/queries.ts` keyed by `(type, period_key)`.)
+- [x] **Step 4:** Card UI at the top of Progress (and shown until acted on): `HairlineCard` with accent left rule — micro-label "ADAPTIVE TARGET", the reason sentence, two buttons: "Apply −150" (accent fill) / "Dismiss" (hairline). One tap each, optimistic, haptic.
+- [x] **Step 5:** Browser-verify (with thin data the card should simply not appear). `npm run build`; commit: `git commit -am "feat: adaptive target suggestions"`
 
 ---
 
